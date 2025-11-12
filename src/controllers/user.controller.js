@@ -1,10 +1,8 @@
-// src/controllers/user.controller.js
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/prismaclient.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "lokanala_secret";
 
-// 🔐 Login user (tanpa bcrypt, plain text password)
 export const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
@@ -14,7 +12,6 @@ export const loginUser = async (req, res) => {
         if (!user)
             return res.status(404).json({ message: "User tidak ditemukan" });
 
-        // ✅ Bandingkan plain text password
         if (user.password !== password)
             return res.status(401).json({ message: "Password salah" });
 

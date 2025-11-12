@@ -38,12 +38,12 @@ async function main() {
     ],
     });
 
-    console.log(`✅ ${users.count} data User berhasil ditambahkan.`);
+    console.log(`${users.count} data User berhasil ditambahkan.`);
 }
 
 main()
     .catch((e) => {
-    console.error("❌ Gagal seeding:", e);
+    console.error("Gagal seeding:", e);
     process.exit(1);
     })
     .finally(async () => {

@@ -1,17 +1,14 @@
-// src/index.js
 import express from 'express';
 import dotenv from 'dotenv';
 import router from './router.js';
-import { prisma } from './config/prismaclient.js'; // import PrismaClient dari config
+import { prisma } from './config/prismaclient.js'; 
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 
-// Tes koneksi utama
 app.get('/', (req, res) => {
     res.send('Server Prisma berjalan 🚀');
 });
@@ -21,7 +18,6 @@ app.get('/ping', (req, res) => {
 });
 
 
-// Tes koneksi ke database
 app.get('/test-db', async (req, res) => {
     try {
         await prisma.$connect();
@@ -31,7 +27,6 @@ app.get('/test-db', async (req, res) => {
     }
 });
 
-// Gunakan router utama untuk semua endpoint API
 app.use('/api', router);
 
 const PORT = process.env.PORT || 3000;
