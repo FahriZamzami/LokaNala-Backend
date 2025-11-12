@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id_user        Int      @id @default(autoincrement())
+  nama           String
+  email          String   @unique
+  password       String
+  role           String   @default("pelanggan")
+  tanggal_dibuat DateTime @default(now())
+
+  umkm           UMKM[]
+  ulasan         Ulasan[]
+}
+
+model KategoriUMKM {
+  id_kategori_umkm Int     @id @default(autoincrement())
+  nama_kategori    String
+  deskripsi        String?
+  umkm             UMKM[]
+}
+
+model UMKM {
+  id_umkm          Int           @id @default(autoincrement())
+  id_user          Int
+  id_kategori_umkm Int?
+  nama_umkm        String
+  alamat           String?
+  no_telepon       String?
+  deskripsi        String?
+  tanggal_terdaftar DateTime @default(now())
+
+  user            User           @relation(fields: [id_user], references: [id_user])
+  kategori_umkm   KategoriUMKM?  @relation(fields: [id_kategori_umkm], references: [id_kategori_umkm])
+  produk          Produk[]
+}
+
+model KategoriProduk {
+  id_kategori_produk Int     @id @default(autoincrement())
+  nama_kategori      String
+  deskripsi          String?
+  produk             Produk[]
+}
+
+model Produk {
+  id_produk          Int     @id @default(autoincrement())
+  id_umkm            Int
+  id_kategori_produk Int?
+  nama_produk        String
+  deskripsi          String?
+  harga              Float
+  stok               Int      @default(0)
+  gambar             String?
+  tanggal_ditambahkan DateTime @default(now())
+
+  umkm             UMKM           @relation(fields: [id_umkm], references: [id_umkm])
+  kategori_produk  KategoriProduk? @relation(fields: [id_kategori_produk], references: [id_kategori_produk])
+  ulasan           Ulasan[]
+  promo            Promo[]
+}
+
+model Ulasan {
+  id_ulasan       Int      @id @default(autoincrement())
+  id_user         Int
+  id_produk       Int
+  rating          Int
+  komentar        String?
+  tanggal_ulasan  DateTime @default(now())
+
+  user    User    @relation(fields: [id_user], references: [id_user])
+  produk  Produk  @relation(fields: [id_produk], references: [id_produk])
+}
+
+model Promo {
+  id_promo        Int      @id @default(autoincrement())
+  id_produk       Int
+  nama_promo      String
+  deskripsi       String?
+  diskon_persen   Float
+  tanggal_mulai   DateTime?
+  tanggal_berakhir DateTime?
+
+  produk Produk @relation(fields: [id_produk], references: [id_produk])
+}
+
