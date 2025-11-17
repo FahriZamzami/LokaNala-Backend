@@ -7,20 +7,31 @@ export const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        const user = await prisma.user.findUnique({ where: { email } });
+        // Cari user berdasarkan email
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
 
-        if (!user)
+        if (!user) {
             return res.status(404).json({ message: "User tidak ditemukan" });
+        }
 
-        if (user.password !== password)
+        // Cek password (belum hashing)
+        if (user.password !== password) {
             return res.status(401).json({ message: "Password salah" });
+        }
 
+        // Generate token
         const token = jwt.sign(
-            { id_user: user.id_user, email: user.email, role: user.role },
+            {
+                id_user: user.id_user,
+                email: user.email
+            },
             JWT_SECRET,
             { expiresIn: "7d" }
         );
 
+        // Response sederhana
         res.json({
             message: "Login berhasil",
             token,
@@ -28,10 +39,15 @@ export const loginUser = async (req, res) => {
                 id_user: user.id_user,
                 nama: user.nama,
                 email: user.email,
-                role: user.role,
+                no_telepon: user.no_telepon,
+                foto_profile: user.foto_profile
             },
         });
+
     } catch (err) {
-        res.status(500).json({ message: "Terjadi kesalahan server", error: err.message });
+        res.status(500).json({
+            message: "Terjadi kesalahan server",
+            error: err.message
+        });
     }
 };
