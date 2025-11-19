@@ -13,11 +13,11 @@ model User {
   email          String   @unique
   no_telepon     String   @unique
   password       String
-  foto_profile   String?   // <-- ditambahkan (opsional)
+  foto_profile   String?
   tanggal_dibuat DateTime @default(now())
 
-  umkm    UMKM[]
-  ulasan  Ulasan[]
+  umkm   UMKM[]
+  ulasan Ulasan[]
 }
 
 model KategoriUMKM {
@@ -28,14 +28,18 @@ model KategoriUMKM {
 }
 
 model UMKM {
-  id_umkm           Int           @id @default(autoincrement())
-  id_user           Int
-  id_kategori_umkm  Int?
-  nama_umkm         String
-  alamat            String?
-  no_telepon        String?
-  deskripsi         String?
-  link_lokasi       String?
+  id_umkm          Int      @id @default(autoincrement())
+  id_user          Int
+  id_kategori_umkm Int?
+  nama_umkm        String
+  alamat           String?
+  no_telepon       String?
+  deskripsi        String?
+  link_lokasi      String?
+  
+  // Field baru untuk gambar UMKM
+  gambar           String?  // <-- Ditambahkan: Menyimpan URL foto/logo UMKM
+  
   tanggal_terdaftar DateTime @default(now())
 
   user          User          @relation(fields: [id_user], references: [id_user])
@@ -52,13 +56,13 @@ model KategoriProduk {
 }
 
 model Produk {
-  id_produk           Int     @id @default(autoincrement())
-  id_umkm             Int
-  id_kategori_produk  Int?
-  nama_produk         String
-  deskripsi           String?
-  harga               Float
-  gambar              String?
+  id_produk          Int      @id @default(autoincrement())
+  id_umkm            Int
+  id_kategori_produk Int?
+  nama_produk        String
+  deskripsi          String?
+  harga              Float
+  gambar             String?
   tanggal_ditambahkan DateTime @default(now())
 
   umkm            UMKM            @relation(fields: [id_umkm], references: [id_umkm])
@@ -80,13 +84,17 @@ model Ulasan {
 }
 
 model Promo {
-  id_promo           Int      @id @default(autoincrement())
-  id_umkm            Int
-  nama_promo         String
-  deskripsi          String?
-  syarat_penggunaan  String?
-  tanggal_mulai      DateTime?
-  tanggal_berakhir   DateTime?
+  id_promo          Int       @id @default(autoincrement())
+  id_umkm           Int
+  nama_promo        String
+  deskripsi         String?
+  syarat_penggunaan String?
+  
+  // Field baru untuk cara penggunaan promo
+  cara_penggunaan   String?   // <-- Ditambahkan: Instruksi cara pakai promo
+  
+  tanggal_mulai     DateTime?
+  tanggal_berakhir  DateTime?
 
   umkm UMKM @relation(fields: [id_umkm], references: [id_umkm])
 }
