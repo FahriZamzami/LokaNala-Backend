@@ -12,6 +12,14 @@ import {
 import { getAllUMKM } from "./controllers/home.controller.js";
 import { getMerchantDetail } from "./controllers/merchant.controller.js";
 import { getProductDetail } from "./controllers/product.controller.js";
+import {
+  getPromosByUMKM,
+  getPromoDetail,
+  createPromo,
+  updatePromo,
+  deletePromo
+} from "./controllers/myUmkmPromotion.controller.js";
+
 
 const router = express.Router();
 
@@ -44,5 +52,14 @@ router.get("/merchant/:id", getMerchantDetail);
 // -------------------- PRODUK DETAIL -------------------- //
 // GET /produk/1
 router.get("/produk/:id", getProductDetail);
+
+// -------------------- PROMO UMKM -------------------- //
+
+router.get('/:id_umkm/promos', getPromosByUMKM);
+router.get('/promo/:id_promo', getPromoDetail);
+router.post('/:id_umkm/promos', createPromo);
+router.put('/promo/:id_promo', updatePromo);
+router.delete('/promo/:id_promo', deletePromo);
+
 
 export default router;

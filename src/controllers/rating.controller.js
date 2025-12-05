@@ -7,15 +7,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, "../../public/uploads");
 
-const BASE_URL = "https://j4nxkf7k-3000.asse.devtunnels.ms"; // Sesuaikan URL DevTunnels
-
 // Helper: Convert "a.jpg,b.jpg" -> "http://.../a.jpg, http://.../b.jpg"
-const generateUrls = (filenameString) => {
+export const generateUrls = (filenameString, req) => {
     if (!filenameString) return null;
-    return filenameString.split(",").map(name => {
-        if (name.startsWith("http")) return name;
-        return `${BASE_URL}/uploads/${name}`;
-    }).join(","); // Kembalikan string dipisah koma agar Android bisa split
+
+    // Gunakan header proxy jika ada (DevTunnels, Ngrok, NGINX, dll)
+    const host = req.get("x-forwarded-host") || req.get("host");
+    const protocol = req.get("x-forwarded-proto") || req.protocol;
+
+    const BASE_URL = `${protocol}://${host}`;
+
+    return filenameString
+        .split(",")
+        .map(name => {
+            if (name.startsWith("http")) return name; 
+            return `${BASE_URL}/uploads/${name}`;
+        })
+        .join(",");
 };
 
 export const getRatingByProduct = async (req, res) => {
@@ -31,10 +39,10 @@ export const getRatingByProduct = async (req, res) => {
             ...review,
             id_rating: review.id_ulasan,
             nilai_rating: review.rating,
-            foto: generateUrls(review.foto), // Mengembalikan string URL dipisah koma
+            foto: generateUrls(review.foto, req), // Mengembalikan string URL dipisah koma
             user: {
                 ...review.user,
-                foto_profile: generateUrls(review.user.foto_profile), 
+                foto_profile: generateUrls(review.user.foto_profile, req), 
             },
         }));
 
@@ -83,7 +91,7 @@ export const addRating = async (req, res) => {
             message: "Berhasil", 
             data: { 
                 ...newReview, 
-                foto: generateUrls(newReview.foto) 
+                foto: generateUrls(newReview.foto, req) 
             } 
         });
     } catch (error) {
@@ -148,7 +156,7 @@ export const updateRating = async (req, res) => {
             message: "Berhasil update", 
             data: { 
                 ...updated, 
-                foto: generateUrls(updated.foto) 
+                foto: generateUrls(updated.foto, req) 
             } 
         });
 

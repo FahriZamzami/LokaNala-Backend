@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -8,12 +9,12 @@ datasource db {
 }
 
 model User {
-  id_user        Int      @id @default(autoincrement())
-  nama           String
-  email          String   @unique
-  no_telepon     String   @unique
-  password       String
-  foto_profile   String?
+  id_user       Int      @id @default(autoincrement())
+  nama          String
+  email         String   @unique
+  no_telepon    String   @unique
+  password      String
+  foto_profile  String?
   tanggal_dibuat DateTime @default(now())
 
   umkm   UMKM[]
@@ -38,20 +39,29 @@ model UMKM {
   link_lokasi      String?
   
   // Field baru untuk gambar UMKM
-  gambar           String?  // <-- Ditambahkan: Menyimpan URL foto/logo UMKM
+  gambar           String?
   
   tanggal_terdaftar DateTime @default(now())
 
   user          User          @relation(fields: [id_user], references: [id_user])
   kategori_umkm KategoriUMKM? @relation(fields: [id_kategori_umkm], references: [id_kategori_umkm])
+  
   produk        Produk[]
   promo         Promo[]
+  
+  // PERBAIKAN: Field lawan untuk relasi ke KategoriProduk
+  kategori_produk KategoriProduk[] 
 }
 
 model KategoriProduk {
   id_kategori_produk Int     @id @default(autoincrement())
+  id_umkm            Int     // <-- Foreign Key ke UMKM
   nama_kategori      String
   deskripsi          String?
+  
+  // Relasi: Kategori ini milik satu UMKM
+  umkm               UMKM    @relation(fields: [id_umkm], references: [id_umkm]) 
+  
   produk             Produk[]
 }
 
@@ -91,7 +101,7 @@ model Promo {
   syarat_penggunaan String?
   
   // Field baru untuk cara penggunaan promo
-  cara_penggunaan   String?   // <-- Ditambahkan: Instruksi cara pakai promo
+  cara_penggunaan   String?
   
   tanggal_mulai     DateTime?
   tanggal_berakhir  DateTime?
