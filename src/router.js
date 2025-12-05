@@ -12,7 +12,10 @@ import {
 import { getAllUMKM } from "./controllers/home.controller.js";
 import { getMerchantDetail } from "./controllers/merchant.controller.js";
 import { getProductDetail } from "./controllers/product.controller.js";
-
+import { addUMKM } from "./controllers/umkm.controller.js";
+import { getKategoriUmkm } from "./controllers/kategoriUmkmController.js";
+import { getUMKMByUser } from "./controllers/umkm.controller.js";
+import { deleteUMKM } from "./controllers/umkm.controller.js";
 const router = express.Router();
 
 // -------------------- USER -------------------- //
@@ -35,6 +38,17 @@ router.delete("/rating/:id_rating", deleteRating);
 // -------------------- UMKM (HOME) -------------------- //
 // GET semua UMKM
 router.get("/umkm", getAllUMKM);
+
+// router.post("/umkm", addUMKM);
+// router.post("/umkm", upload.single("gambar"), addUMKM);
+router.post("/umkm/add", upload.single("gambar"), addUMKM);
+
+router.get("/umkm/user/:id_user", getUMKMByUser);
+
+router.delete("/umkm/:id", deleteUMKM);
+
+// Kategori
+router.get("/kategori", getKategoriUmkm);
 
 // -------------------- MERCHANT DETAIL -------------------- //
 // Detail Merchant (Promo & Produk)
