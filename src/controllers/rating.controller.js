@@ -7,11 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, "../../public/uploads");
 
-// Helper: Convert "a.jpg,b.jpg" -> "http://.../a.jpg, http://.../b.jpg"
 export const generateUrls = (filenameString, req) => {
     if (!filenameString) return null;
 
-    // Gunakan header proxy jika ada (DevTunnels, Ngrok, NGINX, dll)
     const host = req.get("x-forwarded-host") || req.get("host");
     const protocol = req.get("x-forwarded-proto") || req.protocol;
 

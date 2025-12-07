@@ -31,6 +31,8 @@ export const loginUser = async (req, res) => {
             { expiresIn: "7d" }
         );
 
+        const fotoProfileUrl = generateUrl(user.foto_profile, req);
+
         // Response sederhana
         res.json({
             message: "Login berhasil",
@@ -40,7 +42,7 @@ export const loginUser = async (req, res) => {
                 nama: user.nama,
                 email: user.email,
                 no_telepon: user.no_telepon,
-                foto_profile: user.foto_profile
+                foto_profile: fotoProfileUrl
             },
         });
 
@@ -50,4 +52,17 @@ export const loginUser = async (req, res) => {
             error: err.message
         });
     }
+};
+
+export const generateUrl = (filename, req) => {
+    if (!filename) return null;
+
+    const host = req.get("x-forwarded-host") || req.get("host");
+    const protocol = req.get("x-forwarded-proto") || req.protocol;
+
+    const BASE_URL = `${protocol}://${host}`;
+
+    if (filename.startsWith("http")) return filename;
+
+    return `${BASE_URL}/uploads/${filename}`;
 };
