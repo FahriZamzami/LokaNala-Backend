@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id_user       Int      @id @default(autoincrement())
+  nama          String
+  email         String   @unique
+  no_telepon    String   @unique
+  password      String
+  foto_profile  String?
+  tanggal_dibuat DateTime @default(now())
+  umkm   UMKM[]
+  ulasan Ulasan[]
+}
+
+model KategoriUMKM {
+  id_kategori_umkm Int     @id @default(autoincrement())
+  nama_kategori    String
+  deskripsi        String?
+  umkm             UMKM[]
+}
+
+model UMKM {
+  id_umkm          Int      @id @default(autoincrement())
+  id_user          Int
+  id_kategori_umkm Int?
+  nama_umkm        String
+  alamat           String?
+  no_telepon       String?
+  deskripsi        String?
+  link_lokasi      String?
+  
+  // Field baru untuk gambar UMKM
+  gambar           String?
+  
+  tanggal_terdaftar DateTime @default(now())
+  user          User          @relation(fields: [id_user], references: [id_user])
+  kategori_umkm KategoriUMKM? @relation(fields: [id_kategori_umkm], references: [id_kategori_umkm])
+  
+  produk        Produk[]
+  promo         Promo[]
+  
+  // PERBAIKAN: Field lawan untuk relasi ke KategoriProduk
+  kategori_produk KategoriProduk[] 
+}
+
+model KategoriProduk {
+  id_kategori_produk Int     @id @default(autoincrement())
+  id_umkm            Int     // <-- Foreign Key ke UMKM
+  nama_kategori      String
+  deskripsi          String?
+  
+  // PERUBAHAN BARU: Field untuk urutan tampilan kategori
+  urutan             Int     @default(0)  // Urutan tampilan (0-based), default 0
+  
+  // Relasi: Kategori ini milik satu UMKM
+  umkm               UMKM    @relation(fields: [id_umkm], references: [id_umkm]) 
+  
+  produk             Produk[]
+  
+  // Index untuk performa query berdasarkan umkm dan urutan
+  @@index([id_umkm, urutan])
+}
+
+model Produk {
+  id_produk          Int      @id @default(autoincrement())
+  id_umkm            Int
+  id_kategori_produk Int?
+  nama_produk        String
+  deskripsi          String?
+  harga              Float
+  gambar             String?
+  tanggal_ditambahkan DateTime @default(now())
+  umkm            UMKM            @relation(fields: [id_umkm], references: [id_umkm])
+  kategori_produk KategoriProduk? @relation(fields: [id_kategori_produk], references: [id_kategori_produk])
+  ulasan          Ulasan[]
+}
+
+model Ulasan {
+  id_ulasan      Int      @id @default(autoincrement())
+  id_user        Int
+  id_produk      Int
+  rating         Int
+  komentar       String?
+  foto           String?
+  tanggal_ulasan DateTime @default(now())
+  user   User   @relation(fields: [id_user], references: [id_user])
+  produk Produk @relation(fields: [id_produk], references: [id_produk])
+}
+
+model Promo {
+  id_promo          Int       @id @default(autoincrement())
+  id_umkm           Int
+  nama_promo        String
+  deskripsi         String?
+  syarat_penggunaan String?
+  
+  // Field baru untuk cara penggunaan promo
+  cara_penggunaan   String?
+  
+  tanggal_mulai     DateTime?
+  tanggal_berakhir  DateTime?
+  umkm UMKM @relation(fields: [id_umkm], references: [id_umkm])
+}

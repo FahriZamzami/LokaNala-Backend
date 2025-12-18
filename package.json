@@ -1,0 +1,30 @@
+{
+  "name": "lokanala-database",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "description": "Backend API untuk aplikasi Lokanala (UMKM) menggunakan Express + Prisma + MySQL",
+  "author": "Fahri Zamzami",
+  "license": "ISC",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "migrate": "npx prisma migrate dev --name init",
+    "generate": "npx prisma generate",
+    "seed": "node prisma/seed.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "prisma": "^6.19.0"
+  }
+}
