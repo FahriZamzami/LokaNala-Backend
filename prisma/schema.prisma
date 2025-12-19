@@ -15,10 +15,13 @@ model User {
   no_telepon    String   @unique
   password      String
   foto_profile  String?
+  fcm_token     String? 
   tanggal_dibuat DateTime @default(now())
 
   umkm   UMKM[]
   ulasan Ulasan[]
+  follow  Follow[]
+  notifikasi   NotificationSendTo[]
 }
 
 model KategoriUMKM {
@@ -51,18 +54,20 @@ model UMKM {
   
   // PERBAIKAN: Field lawan untuk relasi ke KategoriProduk
   kategori_produk KategoriProduk[] 
+  follow          Follow[]
 }
 
 model KategoriProduk {
   id_kategori_produk Int     @id @default(autoincrement())
-  id_umkm            Int     // <-- Foreign Key ke UMKM
+  id_umkm            Int
   nama_kategori      String
   deskripsi          String?
-  
-  // Relasi: Kategori ini milik satu UMKM
+  urutan             Int     @default(0)
+
   umkm               UMKM    @relation(fields: [id_umkm], references: [id_umkm]) 
-  
   produk             Produk[]
+
+  @@index([id_umkm, urutan])
 }
 
 model Produk {
@@ -108,3 +113,35 @@ model Promo {
 
   umkm UMKM @relation(fields: [id_umkm], references: [id_umkm])
 }
+
+model Follow {
+  id_follow Int @id @default(autoincrement())
+  id_user   Int
+  id_umkm   Int
+
+  user User @relation(fields: [id_user], references: [id_user])
+  umkm UMKM @relation(fields: [id_umkm], references: [id_umkm])
+
+  @@unique([id_user, id_umkm]) // mencegah follow ganda
+}
+
+model Notifikasi {
+  id_notifikasi Int @id @default(autoincrement())
+  judul         String
+  isi           String
+  tanggal_kirim DateTime @default(now())
+
+  penerima NotificationSendTo[]
+}
+
+model NotificationSendTo {
+  id_notifikasi Int
+  id_user       Int
+  dikirim_pada  DateTime @default(now())
+
+  notifikasi Notifikasi @relation(fields: [id_notifikasi], references: [id_notifikasi])
+  user       User       @relation(fields: [id_user], references: [id_user])
+
+  @@id([id_notifikasi, id_user]) // composite primary key
+}
+

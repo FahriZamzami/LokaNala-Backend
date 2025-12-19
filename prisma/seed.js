@@ -116,32 +116,64 @@ async function main() {
   // =============================
   // 4) Kategori Produk (PERUBAHAN UTAMA)
   // =============================
-  console.log("🌱 Seeding Kategori Produk (Per UMKM)...");
+  console.log("🌱 Seeding Kategori Produk (Per UMKM + Urutan)...");
 
-  // A. Kategori untuk Warung Makan (Index 0)
+  // A. Warung Makan
   const katUmkm1_Makanan = await prisma.kategoriProduk.create({
-    data: { id_umkm: allUmkm[0].id_umkm, nama_kategori: "Makanan Berat", deskripsi: "Nasi dan Lauk" }
+    data: {
+      id_umkm: allUmkm[0].id_umkm,
+      nama_kategori: "Makanan Berat",
+      deskripsi: "Nasi dan Lauk",
+      urutan: 1
+    }
   });
+
   const katUmkm1_Minuman = await prisma.kategoriProduk.create({
-    data: { id_umkm: allUmkm[0].id_umkm, nama_kategori: "Minuman Dingin", deskripsi: "Es dan Jus" }
+    data: {
+      id_umkm: allUmkm[0].id_umkm,
+      nama_kategori: "Minuman Dingin",
+      deskripsi: "Es dan Jus",
+      urutan: 2
+    }
   });
 
-  // B. Kategori untuk Rahma Fashion (Index 1)
+  // B. Rahma Fashion
   const katUmkm2_Baju = await prisma.kategoriProduk.create({
-    data: { id_umkm: allUmkm[1].id_umkm, nama_kategori: "Atasan Wanita", deskripsi: "Blouse dan Kemeja" }
+    data: {
+      id_umkm: allUmkm[1].id_umkm,
+      nama_kategori: "Atasan Wanita",
+      deskripsi: "Blouse dan Kemeja",
+      urutan: 1
+    }
   });
+
   const katUmkm2_Aksesori = await prisma.kategoriProduk.create({
-    data: { id_umkm: allUmkm[1].id_umkm, nama_kategori: "Aksesori", deskripsi: "Kalung dan Gelang" }
+    data: {
+      id_umkm: allUmkm[1].id_umkm,
+      nama_kategori: "Aksesori",
+      deskripsi: "Kalung dan Gelang",
+      urutan: 2
+    }
   });
 
-  // C. Kategori untuk Budi Craft (Index 2)
+  // C. Budi Craft
   const katUmkm3_Hiasan = await prisma.kategoriProduk.create({
-    data: { id_umkm: allUmkm[2].id_umkm, nama_kategori: "Hiasan Rumah", deskripsi: "Vas dan Patung" }
+    data: {
+      id_umkm: allUmkm[2].id_umkm,
+      nama_kategori: "Hiasan Rumah",
+      deskripsi: "Vas dan Patung",
+      urutan: 1
+    }
   });
 
-  // D. Kategori untuk Fauzi Farm (Index 4) - Index 3 Salon kita skip dulu produknya
+  // D. Fauzi Farm
   const katUmkm5_Sayur = await prisma.kategoriProduk.create({
-    data: { id_umkm: allUmkm[4].id_umkm, nama_kategori: "Sayuran Daun", deskripsi: "Bayam, Kangkung dll" }
+    data: {
+      id_umkm: allUmkm[4].id_umkm,
+      nama_kategori: "Sayuran Daun",
+      deskripsi: "Bayam, Kangkung dll",
+      urutan: 1
+    }
   });
 
 

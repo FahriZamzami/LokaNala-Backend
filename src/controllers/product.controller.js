@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../config/prismaclient.js";
 
 export const getProductDetail = async (req, res) => {
     try {

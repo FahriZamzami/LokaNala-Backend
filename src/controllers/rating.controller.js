@@ -186,3 +186,138 @@ export const deleteRating = async (req, res) => {
         res.status(500).json({ success: false, message: "Error", error: error.message });
     }
 };
+
+export const checkProductOwner = async (req, res) => {
+    const { id_produk, id_user } = req.params;
+
+    try {
+        // 1. Cari produk berdasarkan id_produk, ambil id_umkm
+        const product = await prisma.Produk.findUnique({
+            where: { id_produk: Number(id_produk) },
+            select: { id_umkm: true },
+        });
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                isOwner: false,
+                message: "Produk tidak ditemukan",
+            });
+        }
+
+        // 2. Cari UMKM berdasarkan id_umkm, ambil id_user pemilik
+        const umkm = await prisma.UMKM.findUnique({
+            where: { id_umkm: product.id_umkm },
+            select: { id_user: true },
+        });
+
+        if (!umkm) {
+            return res.status(404).json({
+                success: false,
+                isOwner: false,
+                message: "UMKM tidak ditemukan",
+            });
+        }
+
+        // 3. Cek apakah user login = id_user pemilik UMKM
+        const isOwner = (umkm.id_user === Number(id_user));
+
+        return res.status(200).json({
+            success: true,
+            isOwner: isOwner,
+        });
+
+    } catch (error) {
+        console.error("OWNER CHECK ERROR =>", error)
+        return res.status(500).json({
+            success: false,
+            isOwner: false,
+            message: error.message
+        });
+    }
+};
+
+const countProductRating = async (id_produk) => {
+    const reviews = await prisma.ulasan.findMany({
+        where: { id_produk: Number(id_produk) },
+        select: { rating: true }
+    });
+
+    if (reviews.length === 0) return 0;
+
+    const total = reviews.reduce((acc, r) => acc + r.rating, 0);
+    const avg = total / reviews.length;
+
+    return Number(avg.toFixed(1));
+};
+
+export const getProductRating = async (req, res) => {
+    try {
+        const { id_produk } = req.params;
+
+        // Hitung rating dengan fungsi yang sudah kamu buat
+        const rating = await countProductRating(id_produk);
+
+        return res.status(200).json({
+            success: true,
+            message: "Product rating fetched successfully",
+            data: { rating }
+        });
+
+    } catch (error) {
+        console.error("Error fetching product rating:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+        });
+    }
+};
+
+export const getUMKMRating = async (req, res) => {
+    try {
+        const id_umkm = Number(req.params.id_umkm);
+
+        if (!id_umkm || isNaN(id_umkm)) {
+            return res.status(400).json({
+                success: false,
+                message: "id_umkm tidak valid"
+            });
+        }
+
+        // Ambil semua produk UMKM
+        const products = await prisma.produk.findMany({
+            where: { id_umkm },
+            select: { id_produk: true }
+        });
+
+        if (products.length === 0) {
+            return res.json({
+                success: true,
+                rating: 0
+            });
+        }
+
+        // Hitung rating tiap produk menggunakan fungsi countProductRating()
+        const ratingList = [];
+        for (let p of products) {
+            const productRating = await countProductRating(p.id_produk);
+            ratingList.push(productRating);
+        }
+
+        // Hitung rata-rata rating UMKM
+        const finalRating =
+            ratingList.reduce((a, b) => a + b, 0) / ratingList.length;
+
+        return res.json({
+            success: true,
+            rating: Number(finalRating.toFixed(1))
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

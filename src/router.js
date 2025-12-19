@@ -2,12 +2,16 @@ import express from "express";
 // 1. Import middleware upload yang baru dibuat
 import { upload } from "./middleware/upload.js"; 
 
-import { loginUser } from "./controllers/user.controller.js";
+import { loginUser, logoutUser } from "./controllers/user.controller.js";
 import {
   getRatingByProduct,
   addRating,
   updateRating,
-  deleteRating
+  deleteRating,
+  checkProductOwner,
+  getProductRating,
+  getUMKMRating
+  // getUMKMRatingController
 } from "./controllers/rating.controller.js";
 import { getAllUMKM } from "./controllers/home.controller.js";
 import { getMerchantDetail } from "./controllers/merchant.controller.js";
@@ -26,6 +30,7 @@ const router = express.Router();
 // -------------------- USER -------------------- //
 // Login
 router.post("/user/login", loginUser);
+router.post("user/logout", logoutUser);
 
 // -------------------- RATING / ULASAN -------------------- //
 // GET semua rating berdasarkan id_produk
@@ -39,6 +44,14 @@ router.put("/rating/:id_rating", upload.array("foto", 5), updateRating);
 
 // DELETE hapus rating
 router.delete("/rating/:id_rating", deleteRating);
+
+router.get("/produk/:id_produk/is-owner/:id_user", checkProductOwner);
+
+// API untuk rating produk
+router.get("/rating/product/:id_produk", getProductRating);
+
+// API untuk rating UMKM
+router.get("/rating/umkm/:id_umkm", getUMKMRating);
 
 // -------------------- UMKM (HOME) -------------------- //
 // GET semua UMKM

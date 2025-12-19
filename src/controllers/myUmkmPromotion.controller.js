@@ -1,6 +1,5 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../config/prismaclient.js";
+import { sendFirebaseNotification } from "../utility/firebase.js";
 
 const formatDate = (date) => {
     if (!date) return null; // ini penting agar tidak 1970-01-01
@@ -65,38 +64,123 @@ export const getPromoDetail = async (req, res) => {
 };
 
 export const createPromo = async (req, res) => {
-try {
-    const { id_umkm } = req.params;
-    const {
-    nama_promo,
-    deskripsi,
-    syarat_penggunaan,
-    cara_penggunaan,
-    tanggal_mulai,
-    tanggal_berakhir,
-    } = req.body;
+    try {
+        const { id_umkm } = req.params;
+        const { nama_promo, deskripsi, syarat_penggunaan, cara_penggunaan, tanggal_mulai, tanggal_berakhir } = req.body;
 
-    const newPromo = await prisma.promo.create({
-    data: {
-        id_umkm: Number(id_umkm),
-        nama_promo,
-        deskripsi,
-        syarat_penggunaan,
-        cara_penggunaan,
-        tanggal_mulai: tanggal_mulai ? new Date(tanggal_mulai) : null,
-        tanggal_berakhir: tanggal_berakhir ? new Date(tanggal_berakhir) : null,
-    },
-    });
+        // Ambil UMKM + owner
+        const umkm = await prisma.UMKM.findUnique({
+            where: { id_umkm: Number(id_umkm) },
+            include: {
+                user: {
+                    select: {
+                        id_user: true,      // ⬅️ TAMBAH
+                        fcm_token: true
+                    }
+                }
+            }
+        });
 
-    res.status(201).json({
-    success: true,
-    message: "Promo created successfully",
-    data: newPromo,
-    });
-} catch (error) {
-    console.error("Error createPromo:", error);
-    res.status(500).json({ success: false, message: "Failed to create promo" });
-}
+        if (!umkm) {
+            return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
+        }
+
+        // Ambil follower (hanya id_user)
+        const followers = await prisma.follow.findMany({
+            where: { id_umkm: Number(id_umkm) },
+            select: { id_user: true }
+        });
+
+        // Ambil fcm_token dari user berdasarkan id_user follower
+        const followerIds = followers.map(f => f.id_user);
+        const followerUsers = await prisma.user.findMany({
+            where: {
+                id_user: { in: followerIds }
+            },
+            select: {
+                id_user: true,
+                fcm_token: true
+            }
+        });
+
+        // Simpan promo
+        const promo = await prisma.promo.create({
+            data: {
+                id_umkm: Number(id_umkm),
+                nama_promo,
+                deskripsi,
+                syarat_penggunaan,
+                cara_penggunaan,
+                tanggal_mulai: tanggal_mulai ? new Date(tanggal_mulai) : null,
+                tanggal_berakhir: tanggal_berakhir ? new Date(tanggal_berakhir) : null,
+            }
+        });
+
+        // Buat notifikasi DB
+        const notifikasi = await prisma.notifikasi.create({
+            data: {
+                judul: "Promo Baru 🎉",
+                isi: `${umkm.nama_umkm} menambahkan promo baru: ${nama_promo}`,
+            }
+        });
+
+        // Kirim notifikasi ke follower (simpan ke DB)
+        if (followers.length > 0) {
+            await prisma.notificationSendTo.createMany({
+                data: followers.map(f => ({
+                    id_notifikasi: notifikasi.id_notifikasi,
+                    id_user: f.id_user,
+                }))
+            });
+
+            // Kirim Firebase notification ke semua follower yang punya FCM token
+            const fcmPromises = followerUsers
+                .filter(user => user.fcm_token)
+                .map(user =>
+                    sendFirebaseNotification(
+                        user.fcm_token,
+                        "Promo Baru 🎉",
+                        `${umkm.nama_umkm} menambahkan promo baru: ${nama_promo}`,
+                        {
+                            targetUserId: user.id_user,
+                            type: "promo",
+                            promoId: promo.id_promo
+                        }
+                    ).catch(err => {
+                        console.error(`Failed to send FCM to user ${user.id_user}:`, err);
+                        return null;
+                    })
+                );
+
+            await Promise.all(fcmPromises);
+            console.log(`Notifikasi terkirim ke ${fcmPromises.length} follower`);
+        }
+
+        // Firebase ke owner UMKM
+        if (umkm.user?.fcm_token) {
+            await sendFirebaseNotification(
+                umkm.user.fcm_token,
+                "Promo berhasil ditambahkan",
+                `Promo "${nama_promo}" berhasil ditambahkan`,
+                {
+                    targetUserId: umkm.user.id_user, 
+                    type: "promo_created",
+                    promoId: promo.id_promo
+                }
+            );
+        }
+
+        res.status(201).json({
+            success: true,
+            message: "Promo berhasil ditambahkan & notifikasi terkirim",
+            data: promo,
+            notificationsSent: followerUsers.filter(u => u.fcm_token).length
+        });
+
+    } catch (error) {
+        console.error("Error createPromo:", error);
+        res.status(500).json({ success: false, message: "Failed to create promo", error: error.message });
+    }
 };
 
 export const updatePromo = async (req, res) => {
