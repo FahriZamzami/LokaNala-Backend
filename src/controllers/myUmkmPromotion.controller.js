@@ -140,7 +140,7 @@ export const createPromo = async (req, res) => {
                     sendFirebaseNotification(
                         user.fcm_token,
                         "Promo Baru 🎉",
-                        `${umkm.nama_umkm} menambahkan promo baru: ${nama_promo}`,
+                        `${umkm.nama_umkm} menambahkan promo baru`,
                         {
                             targetUserId: user.id_user,
                             type: "promo",

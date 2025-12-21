@@ -36,7 +36,7 @@ export const getAllUMKM = async (req, res) => {
                 ...item,
                 // Timpa field ini agar Android menerima URL gambar yang benar
                 link_lokasi: imageUrl, 
-                gambar: imageUrl
+                gambar_url: imageUrl
             };
         });
 

@@ -285,39 +285,45 @@ export const getUMKMRating = async (req, res) => {
             });
         }
 
-        // Ambil semua produk UMKM
-        const products = await prisma.produk.findMany({
-            where: { id_umkm },
-            select: { id_produk: true }
+        // 1. Ambil semua ulasan dari semua produk yang dimiliki UMKM ini
+        // Kita gunakan ulasan -> produk -> id_umkm untuk filtering
+        const allReviews = await prisma.ulasan.findMany({
+            where: {
+                produk: {
+                    id_umkm: id_umkm
+                }
+            },
+            select: {
+                rating: true
+            }
         });
 
-        if (products.length === 0) {
+        // 2. Jika tidak ada ulasan sama sekali di semua produknya
+        if (allReviews.length === 0) {
             return res.json({
                 success: true,
-                rating: 0
+                rating: 0,
+                total_ulasan: 0
             });
         }
 
-        // Hitung rating tiap produk menggunakan fungsi countProductRating()
-        const ratingList = [];
-        for (let p of products) {
-            const productRating = await countProductRating(p.id_produk);
-            ratingList.push(productRating);
-        }
-
-        // Hitung rata-rata rating UMKM
-        const finalRating =
-            ratingList.reduce((a, b) => a + b, 0) / ratingList.length;
+        // 3. Hitung Total Bintang dan bagi dengan Total Ulasan
+        const totalBintang = allReviews.reduce((acc, curr) => acc + curr.rating, 0);
+        const finalRating = totalBintang / allReviews.length;
 
         return res.json({
             success: true,
-            rating: Number(finalRating.toFixed(1))
+            // Hasil pembulatan 1 desimal (misal 4.5)
+            rating: Number(finalRating.toFixed(1)),
+            total_ulasan: allReviews.length
         });
 
     } catch (error) {
+        console.error("Error UMKMRating:", error);
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: "Terjadi kesalahan server",
+            error: error.message
         });
     }
 };
