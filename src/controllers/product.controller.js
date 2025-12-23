@@ -7,6 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, "../../public/uploads");
 
+import { sendFirebaseNotification } from "../utility/firebase.js";
+import { countProductRating } from "./rating.controller.js";
+
 // ------------------------------------------------------------------
 // HELPER: Generate URL Gambar (Versi Perbaikan & Fail-Safe)
 // ------------------------------------------------------------------
@@ -64,12 +67,7 @@ export const getProductDetail = async (req, res) => {
         const { id } = req.params;
         const productId = parseInt(id);
 
-        const ratingAgg = await prisma.ulasan.aggregate({
-            where: { id_produk: productId },
-            _avg: { rating: true },
-            _count: { rating: true },
-        });
-
+        // 1. Ambil data detail produk
         const productData = await prisma.produk.findUnique({
             where: { id_produk: productId },
             include: {
@@ -83,16 +81,27 @@ export const getProductDetail = async (req, res) => {
             },
         });
 
-        if (!productData) return res.status(404).json({ success: false, message: "Produk tidak ditemukan" });
+        if (!productData) {
+            return res.status(404).json({ success: false, message: "Produk tidak ditemukan" });
+        }
 
+        // 2. Gunakan fungsi helper countProductRating untuk menghitung rata-rata
+        const ratingAvg = await countProductRating(productId);
+
+        // 3. Ambil jumlah ulasan (untuk field jumlah_ulasan)
+        const totalUlasan = await prisma.ulasan.count({
+            where: { id_produk: productId }
+        });
+
+        // 4. Susun Response Data
         const responseData = {
             id: productData.id_produk,
             nama_produk: productData.nama_produk,
             deskripsi: productData.deskripsi,
             harga: productData.harga,
-            gambar: generateUrls(productData.gambar, req), // Gunakan generateUrls
-            rating_rata_rata: parseFloat((ratingAgg._avg.rating || 0).toFixed(1)),
-            jumlah_ulasan: ratingAgg._count.rating,
+            gambar: generateUrls(productData.gambar, req),
+            rating_rata_rata: ratingAvg, // Hasil dari fungsi countProductRating
+            jumlah_ulasan: totalUlasan,   // Menggunakan count()
             umkm: {
                 id: productData.umkm.id_umkm,
                 nama: productData.umkm.nama_umkm,
@@ -110,6 +119,7 @@ export const getProductDetail = async (req, res) => {
 
         res.status(200).json({ success: true, data: responseData });
     } catch (error) {
+        console.error("Error getProductDetail:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 };
@@ -122,35 +132,43 @@ export const getProductsByUmkm = async (req, res) => {
         const { umkmId } = req.params;
         const products = await prisma.produk.findMany({
             where: { id_umkm: parseInt(umkmId) },
-            include: { kategori_produk: true },
+            include: { 
+                kategori_produk: true, // WAJIB: Agar data kategori tidak null
+                _count: { select: { ulasan: true } } 
+            },
             orderBy: { tanggal_ditambahkan: "desc" }
         });
 
         const formattedProducts = await Promise.all(products.map(async (product) => {
-            const agg = await prisma.ulasan.aggregate({
-                where: { id_produk: product.id_produk },
-                _avg: { rating: true },
-                _count: { rating: true }
-            });
+            // Hitung rating menggunakan helper yang sudah Anda import
+            const ratingAvg = await countProductRating(product.id_produk);
 
             return {
                 id_produk: product.id_produk,
                 nama_produk: product.nama_produk,
                 deskripsi: product.deskripsi || "",
                 harga: product.harga,
-                gambar: generateUrls(product.gambar, req), // Sudah diperbaiki
-                kategori_produk: product.kategori_produk ? {
-                    id_kategori_produk: product.kategori_produk.id_kategori_produk,
-                    nama_kategori: product.kategori_produk.nama_kategori,
-                } : null,
-                rating_rata_rata: agg._avg.rating ? parseFloat(agg._avg.rating.toFixed(1)) : 0,
-                jumlah_ulasan: agg._count.rating || 0,
+                // Pastikan menggunakan field 'gambar' sesuai DTO Android
+                gambar: generateUrls(product.gambar, req), 
+                
+                // ⭐ SOLUSI BEGIN_OBJECT: Kirim sebagai Object, bukan String
+                kategori_produk: {
+                    id_kategori_produk: product.kategori_produk?.id_kategori_produk || 0,
+                    nama_kategori: product.kategori_produk?.nama_kategori || "Lainnya",
+                    deskripsi: ""
+                },
+                
+                // ⭐ SOLUSI RATING 0.0: Gunakan key 'rating_rata_rata' sesuai DTO Android
+                rating_rata_rata: ratingAvg, 
+                
+                jumlah_ulasan: product._count.ulasan || 0,
                 tanggal_ditambahkan: product.tanggal_ditambahkan
             };
         }));
 
         res.status(200).json({ success: true, data: formattedProducts });
     } catch (error) {
+        console.error("Error getProductsByUmkm:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 };
@@ -163,6 +181,23 @@ export const addProduct = async (req, res) => {
         const { id_umkm, id_kategori_produk, nama_produk, deskripsi, harga } = req.body;
         const file = req.file;
 
+        // 1. Ambil data UMKM dan Follower terlebih dahulu
+        const umkm = await prisma.uMKM.findUnique({
+            where: { id_umkm: parseInt(id_umkm) },
+            include: {
+                user: { select: { id_user: true, fcm_token: true } }, // Owner
+                follow: { // Followers
+                    select: { id_user: true }
+                }
+            }
+        });
+
+        if (!umkm) {
+            if (file) fs.unlinkSync(file.path);
+            return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
+        }
+
+        // 2. Simpan Produk ke Database
         const newProduct = await prisma.produk.create({
             data: {
                 id_umkm: parseInt(id_umkm),
@@ -174,12 +209,68 @@ export const addProduct = async (req, res) => {
             },
         });
 
+        // --- LOGIKA NOTIFIKASI ---
+
+        // 3. Buat Notifikasi Master di Database
+        const notifFollower = await prisma.notifikasi.create({
+            data: {
+                judul: "Produk Baru! 🛍️",
+                isi: `${umkm.nama_umkm} baru saja menambahkan produk: ${nama_produk}`,
+            }
+        });
+
+        // 4. Kirim ke Follower (DB & Firebase)
+        const followerIds = umkm.follow.map(f => f.id_user);
+        if (followerIds.length > 0) {
+            await prisma.notificationSendTo.createMany({
+                data: followerIds.map(id => ({
+                    id_notifikasi: notifFollower.id_notifikasi,
+                    id_user: id
+                }))
+            });
+
+            const followerUsers = await prisma.user.findMany({
+                where: { id_user: { in: followerIds }, fcm_token: { not: null } },
+                select: { id_user: true, fcm_token: true }
+            });
+
+            const fcmFollowerPromises = followerUsers.map(u => 
+                sendFirebaseNotification(u.fcm_token, notifFollower.judul, notifFollower.isi, {
+                    targetUserId: u.id_user, // ⭐ PERBAIKAN: Tambahkan targetUserId di sini
+                    type: "new_product",
+                    id_produk: String(newProduct.id_produk),
+                    id_umkm: String(id_umkm)
+                }).catch(e => console.log(`FCM Follower Error: ${e.message}`))
+            );
+            await Promise.all(fcmFollowerPromises);
+        }
+
+        // 5. Kirim Notifikasi ke Owner (Konfirmasi Berhasil)
+        if (umkm.user && umkm.user.fcm_token) {
+            await sendFirebaseNotification(
+                umkm.user.fcm_token,
+                "Produk Berhasil Ditambahkan",
+                `Produk "${nama_produk}" Anda sudah live dan tersedia untuk pembeli.`,
+                {
+                    targetUserId: umkm.user.id_user, // ⭐ PERBAIKAN: Tambahkan targetUserId di sini
+                    type: "product_created",
+                    id_produk: String(newProduct.id_produk)
+                }
+            ).catch(e => console.log(`FCM Owner Error: ${e.message}`));
+        }
+
         res.status(201).json({
             success: true,
+            message: "Produk ditambahkan & notifikasi terkirim",
             data: { ...newProduct, gambar: generateUrls(newProduct.gambar, req) }
         });
+
     } catch (error) {
-        if (req.file) fs.unlinkSync(req.file.path);
+        if (req.file) {
+            const p = path.join(uploadDir, req.file.filename);
+            if (fs.existsSync(p)) fs.unlinkSync(p);
+        }
+        console.error("Error addProduct:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 };

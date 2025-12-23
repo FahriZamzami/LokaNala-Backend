@@ -1,5 +1,7 @@
 import { prisma } from "../config/prismaclient.js";
 
+import { countProductRating } from "./rating.controller.js";
+
 export const generateUrls = (filenameString, req) => {
     if (!filenameString) return null;
 
@@ -46,6 +48,75 @@ export const generateUrls = (filenameString, req) => {
     return urls;
 };
 
+// export const getMerchantDetail = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         if (!id) return res.status(400).json({ success: false, message: "ID UMKM diperlukan" });
+
+//         const umkmId = parseInt(id);
+
+//         const merchantData = await prisma.uMKM.findUnique({
+//             where: { id_umkm: umkmId },
+//             include: {
+//                 kategori_umkm: true,
+//                 promo: { orderBy: { id_promo: "desc" } },
+//                 produk: {
+//                     orderBy: { id_produk: "desc" },
+//                     include: {
+//                         kategori_produk: true,
+//                         _count: { select: { ulasan: true } },
+//                     },
+//                 },
+//             },
+//         });
+
+//         if (!merchantData) return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
+
+//         // Response Sukses dengan pemrosesan URL Gambar
+//         res.status(200).json({
+//             success: true,
+//             message: "Berhasil mengambil detail UMKM",
+//             data: {
+//                 id: merchantData.id_umkm,
+//                 nama: merchantData.nama_umkm,
+//                 deskripsi: merchantData.deskripsi,
+//                 alamat: merchantData.alamat,
+//                 link_lokasi: merchantData.link_lokasi,
+                
+//                 // ⭐ PERBAIKAN: Tambahkan URL untuk Logo/Gambar UMKM
+//                 gambar_url: generateUrls(merchantData.gambar, req), 
+                
+//                 rating: 4.8, 
+//                 kategori: merchantData.kategori_umkm?.nama_kategori || "Umkm",
+
+//                 promos: merchantData.promo.map((p) => ({
+//                     id_promo: p.id_promo,
+//                     nama_promo: p.nama_promo,
+//                     deskripsi: p.deskripsi,
+//                     syarat: p.syarat_penggunaan,
+//                     berlaku_sampai: p.tanggal_berakhir,
+//                 })),
+
+//                 products: merchantData.produk.map((p) => ({
+//                     id_produk: p.id_produk,
+//                     nama_produk: p.nama_produk,
+//                     deskripsi: p.deskripsi,
+//                     harga: p.harga,
+                    
+//                     // ⭐ PERBAIKAN: Tambahkan URL lengkap untuk Gambar Produk
+//                     gambar_url: generateUrls(p.gambar, req), 
+                    
+//                     kategori_produk: p.kategori_produk?.nama_kategori || "Lainnya",
+//                     jumlah_ulasan: p._count.ulasan,
+//                 })),
+//             },
+//         });
+//     } catch (error) {
+//         console.error("Error getting merchant detail:", error);
+//         res.status(500).json({ success: false, message: "Terjadi kesalahan pada server" });
+//     }
+// };
+
 export const getMerchantDetail = async (req, res) => {
     try {
         const { id } = req.params;
@@ -53,6 +124,7 @@ export const getMerchantDetail = async (req, res) => {
 
         const umkmId = parseInt(id);
 
+        // 1. Ambil data UMKM beserta relasinya
         const merchantData = await prisma.uMKM.findUnique({
             where: { id_umkm: umkmId },
             include: {
@@ -70,7 +142,22 @@ export const getMerchantDetail = async (req, res) => {
 
         if (!merchantData) return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
 
-        // Response Sukses dengan pemrosesan URL Gambar
+        // 2. ⭐ HITUNG RATING UMKM SECARA DINAMIS
+        // Mengambil semua rating dari semua produk milik UMKM ini
+        const allReviews = await prisma.ulasan.findMany({
+            where: { produk: { id_umkm: umkmId } },
+            select: { rating: true }
+        });
+
+        let finalRating = 0;
+        let totalUlasan = allReviews.length;
+
+        if (totalUlasan > 0) {
+            const totalBintang = allReviews.reduce((acc, curr) => acc + curr.rating, 0);
+            finalRating = Number((totalBintang / totalUlasan).toFixed(1));
+        }
+
+        // 3. Response Sukses
         res.status(200).json({
             success: true,
             message: "Berhasil mengambil detail UMKM",
@@ -80,11 +167,12 @@ export const getMerchantDetail = async (req, res) => {
                 deskripsi: merchantData.deskripsi,
                 alamat: merchantData.alamat,
                 link_lokasi: merchantData.link_lokasi,
-                
-                // ⭐ PERBAIKAN: Tambahkan URL untuk Logo/Gambar UMKM
                 gambar_url: generateUrls(merchantData.gambar, req), 
                 
-                rating: 4.8, 
+                // ⭐ SEKARANG MENGGUNAKAN HASIL HITUNGAN ASLI
+                rating: finalRating, 
+                total_ulasan: totalUlasan,
+                
                 kategori: merchantData.kategori_umkm?.nama_kategori || "Umkm",
 
                 promos: merchantData.promo.map((p) => ({
@@ -95,17 +183,21 @@ export const getMerchantDetail = async (req, res) => {
                     berlaku_sampai: p.tanggal_berakhir,
                 })),
 
-                products: merchantData.produk.map((p) => ({
-                    id_produk: p.id_produk,
-                    nama_produk: p.nama_produk,
-                    deskripsi: p.deskripsi,
-                    harga: p.harga,
+                // ⭐ Tambahkan rating per produk juga jika diperlukan
+                products: await Promise.all(merchantData.produk.map(async (p) => {
+                    // Opsional: Hitung rating per produk menggunakan helper yang sudah ada
+                    const productRating = await countProductRating(p.id_produk);
                     
-                    // ⭐ PERBAIKAN: Tambahkan URL lengkap untuk Gambar Produk
-                    gambar_url: generateUrls(p.gambar, req), 
-                    
-                    kategori_produk: p.kategori_produk?.nama_kategori || "Lainnya",
-                    jumlah_ulasan: p._count.ulasan,
+                    return {
+                        id_produk: p.id_produk,
+                        nama_produk: p.nama_produk,
+                        deskripsi: p.deskripsi,
+                        harga: p.harga,
+                        gambar_url: generateUrls(p.gambar, req), 
+                        kategori_produk: p.kategori_produk?.nama_kategori || "Lainnya",
+                        rating_produk: productRating, // Rating real-time per produk
+                        jumlah_ulasan: p._count.ulasan,
+                    };
                 })),
             },
         });

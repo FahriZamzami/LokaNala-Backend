@@ -3,7 +3,7 @@ import express from "express";
 import { upload } from "./middleware/upload.js"; 
 import { authenticate } from "./middleware/auth.js"; 
 
-import { loginUser, logoutUser, getMyUMKM } from "./controllers/user.controller.js";
+import { loginUser, logoutUser, getMyUMKM, registerUser, getUserFollowing } from "./controllers/user.controller.js";
 import {
   getRatingByProduct,
   addRating,
@@ -22,7 +22,15 @@ import {
   updateProduct,
   deleteProduct 
 } from "./controllers/product.controller.js";
-import { getMyUmkm } from "./controllers/umkmController.js";
+
+import { 
+    createUmkm, 
+    getMyUmkm, 
+    updateUmkm, 
+    deleteUmkm,
+    getUmkmById,
+    getAllKategoriUMKM 
+} from "./controllers/umkmController.js";
 
 import {
   getPromosByUMKM,
@@ -42,12 +50,17 @@ import {
 
 import { followUMKM, unfollowUMKM, checkFollowStatus, getFollowedUMKM } from "./controllers/follow.controller.js";
 
+import { getUserNotifications } from "./controllers/notification.controller.js";
+
 const router = express.Router();
 
 // -------------------- USER -------------------- //
+router.post("/user/register", upload.single("foto_profile"), registerUser);
 router.post("/user/login", loginUser);
 router.post("/user/logout", logoutUser); // (tetap, walau tanpa slash)
 router.get("/user/my-umkm", authenticate, getMyUMKM);
+router.get("/user/notifications", authenticate, getUserNotifications);
+router.get("/user/following", authenticate, getUserFollowing);
 
 // -------------------- RATING / ULASAN -------------------- //
 router.get("/rating/:id_produk", getRatingByProduct);
@@ -67,6 +80,19 @@ router.get("/merchant/:id", getMerchantDetail);
 
 // -------------------- MY UMKM -------------------- //
 router.get("/umkm/my", getMyUmkm);
+// 2. Daftarkan UMKM baru (dengan satu gambar)
+router.post("/create-umkm", upload.single("gambar"), createUmkm); 
+
+// Update UMKM - SEKARANG TANPA MULTIPART
+router.put("/update-umkm/:id_umkm", upload.single("gambar"), updateUmkm);
+
+// 4. Hapus UMKM
+// DELETE /api/umkm/:id_umkm
+router.delete("/delete/umkm/:id_umkm", deleteUmkm);
+
+router.get("/umkm-detail/:id_umkm", getUmkmById);
+
+router.get("/umkm-category", getAllKategoriUMKM);
 
 // -------------------- PRODUK DETAIL -------------------- //
 router.get("/produk/:id", getProductDetail);

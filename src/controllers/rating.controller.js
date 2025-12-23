@@ -7,6 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, "../../public/uploads");
 
+import { sendFirebaseNotification } from "../utility/firebase.js";
+
 export const generateUrls = (filenameString, req) => {
     if (!filenameString) return null;
 
@@ -50,17 +52,65 @@ export const getRatingByProduct = async (req, res) => {
     }
 };
 
+// export const addRating = async (req, res) => {
+//     const { id_produk, id_user, komentar, nilai_rating } = req.body;
+//     const files = req.files || []; // Ambil array files
+
+//     if (!id_produk || !id_user || !nilai_rating) {
+//         // Hapus file jika gagal
+//         files.forEach(f => fs.unlinkSync(f.path));
+//         return res.status(400).json({ success: false, message: "Data tidak lengkap" });
+//     }
+
+//     try {
+//         const existing = await prisma.ulasan.findFirst({
+//             where: { id_produk: parseInt(id_produk), id_user: parseInt(id_user) }
+//         });
+
+//         if (existing) {
+//             files.forEach(f => fs.unlinkSync(f.path));
+//             return res.status(409).json({ success: false, message: "Sudah review" });
+//         }
+
+//         // Gabungkan nama file jadi string "a.jpg,b.jpg"
+//         const filenameString = files.map(f => f.filename).join(",");
+
+//         const newReview = await prisma.ulasan.create({
+//             data: {
+//                 id_produk: parseInt(id_produk),
+//                 id_user: parseInt(id_user),
+//                 rating: parseInt(nilai_rating),
+//                 komentar: komentar || "",
+//                 foto: filenameString || null,
+//             },
+//             include: { user: true }
+//         });
+
+//         res.status(201).json({
+//             success: true, 
+//             message: "Berhasil", 
+//             data: { 
+//                 ...newReview, 
+//                 foto: generateUrls(newReview.foto, req) 
+//             } 
+//         });
+//     } catch (error) {
+//         files.forEach(f => fs.unlinkSync(f.path));
+//         res.status(500).json({ success: false, message: "Gagal", error: error.message });
+//     }
+// };
+
 export const addRating = async (req, res) => {
     const { id_produk, id_user, komentar, nilai_rating } = req.body;
-    const files = req.files || []; // Ambil array files
+    const files = req.files || [];
 
     if (!id_produk || !id_user || !nilai_rating) {
-        // Hapus file jika gagal
         files.forEach(f => fs.unlinkSync(f.path));
         return res.status(400).json({ success: false, message: "Data tidak lengkap" });
     }
 
     try {
+        // 1. Cek apakah user sudah pernah review produk ini
         const existing = await prisma.ulasan.findFirst({
             where: { id_produk: parseInt(id_produk), id_user: parseInt(id_user) }
         });
@@ -70,9 +120,27 @@ export const addRating = async (req, res) => {
             return res.status(409).json({ success: false, message: "Sudah review" });
         }
 
-        // Gabungkan nama file jadi string "a.jpg,b.jpg"
-        const filenameString = files.map(f => f.filename).join(",");
+        // 2. Ambil data Produk, UMKM, dan Owner untuk kebutuhan notifikasi
+        const produk = await prisma.produk.findUnique({
+            where: { id_produk: parseInt(id_produk) },
+            include: {
+                umkm: {
+                    include: {
+                        user: {
+                            select: { id_user: true, fcm_token: true }
+                        }
+                    }
+                }
+            }
+        });
 
+        if (!produk) {
+            files.forEach(f => fs.unlinkSync(f.path));
+            return res.status(404).json({ success: false, message: "Produk tidak ditemukan" });
+        }
+
+        // 3. Simpan ulasan ke Database
+        const filenameString = files.map(f => f.filename).join(",");
         const newReview = await prisma.ulasan.create({
             data: {
                 id_produk: parseInt(id_produk),
@@ -81,19 +149,65 @@ export const addRating = async (req, res) => {
                 komentar: komentar || "",
                 foto: filenameString || null,
             },
-            include: { user: true }
+            include: { user: { select: { nama: true } } }
         });
 
-        res.status(201).json({
-            success: true, 
-            message: "Berhasil", 
-            data: { 
-                ...newReview, 
-                foto: generateUrls(newReview.foto, req) 
-            } 
+        // --- LOGIKA NOTIFIKASI ---
+
+        // 4. Buat Notifikasi di Database (untuk Owner UMKM)
+        const notificationTitle = "Ulasan Baru ⭐";
+        const notificationBody = `${newReview.user.nama} memberikan rating ${nilai_rating} pada produk ${produk.nama_produk}`;
+
+        const notifikasi = await prisma.notifikasi.create({
+            data: {
+                judul: notificationTitle,
+                isi: notificationBody,
+            }
         });
+
+        // 5. Hubungkan notifikasi ke ID User Pemilik UMKM
+        const owner = produk.umkm.user;
+        if (owner) {
+            // 1. Simpan ke Database (untuk riwayat di aplikasi)
+            await prisma.notificationSendTo.create({
+                data: {
+                    id_notifikasi: notifikasi.id_notifikasi,
+                    id_user: owner.id_user,
+                }
+            });
+
+            // 2. Kirim Real-time via Firebase
+            if (owner.fcm_token) {
+                try {
+                    await sendFirebaseNotification(
+                        owner.fcm_token,
+                        notificationTitle,
+                        notificationBody,
+                        {
+                            // Parameter ini WAJIB sesuai definisi helper Anda
+                            targetUserId: owner.id_user, 
+                            type: "new_review",
+                            promoId: String(id_produk) // Anda bisa menyisipkan id_produk di sini
+                        }
+                    );
+                } catch (fcmErr) {
+                    console.error("Gagal kirim Firebase Notification:", fcmErr.message);
+                }
+            }
+        }
+
+        res.status(201).json({
+            success: true,
+            message: "Ulasan berhasil ditambahkan dan pemilik telah dinotifikasi",
+            data: {
+                ...newReview,
+                foto: generateUrls(newReview.foto, req)
+            }
+        });
+
     } catch (error) {
         files.forEach(f => fs.unlinkSync(f.path));
+        console.error("Error addRating:", error);
         res.status(500).json({ success: false, message: "Gagal", error: error.message });
     }
 };
@@ -237,7 +351,7 @@ export const checkProductOwner = async (req, res) => {
     }
 };
 
-const countProductRating = async (id_produk) => {
+export const countProductRating = async (id_produk) => {
     const reviews = await prisma.ulasan.findMany({
         where: { id_produk: Number(id_produk) },
         select: { rating: true }

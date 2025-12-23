@@ -1,7 +1,60 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/prismaclient.js";
+import { generateUrls } from "./product.controller.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "lokanala_secret";
+
+export const registerUser = async (req, res) => {
+    try {
+        const { nama, email, no_telepon, password, fcm_token } = req.body;
+        const foto_profile = req.file ? req.file.filename : null;
+
+        // 1. Validasi input wajib
+        if (!nama || !email || !no_telepon || !password || !foto_profile) {
+            return res.status(400).json({ success: false, message: "Semua data dan foto profil wajib diisi" });
+        }
+
+        // 2. Cek apakah email sudah terdaftar
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "Email sudah digunakan" });
+        }
+
+        // 3. Simpan user baru (Password sebaiknya dihash, namun sesuaikan dengan login Anda)
+        const newUser = await prisma.user.create({
+            data: {
+                nama,
+                email,
+                no_telepon,
+                password,
+                foto_profile,
+                fcm_token: fcm_token || null
+            }
+        });
+
+        // 4. AUTO LOGIN: Generate JWT Token langsung
+        const token = jwt.sign(
+            { id_user: newUser.id_user, email: newUser.email },
+            JWT_SECRET,
+            { expiresIn: "7d" }
+        );
+
+        res.status(201).json({
+            success: true,
+            message: "Akun berhasil dibuat",
+            token,
+            user: {
+                id_user: newUser.id_user,
+                nama: newUser.nama,
+                email: newUser.email,
+                no_telepon: newUser.no_telepon,
+                foto_profile: generateUrl(newUser.foto_profile, req),
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
 
 export const loginUser = async (req, res) => {
     const { email, password, fcmToken } = req.body;
@@ -205,4 +258,104 @@ export const generateUrl = (filename, req) => {
     if (filename.startsWith("http")) return filename;
 
     return `${BASE_URL}/uploads/${filename}`;
+};
+
+export const getUserFollowing = async (req, res) => {
+    try {
+        const userId = req.user.id_user; // Dari middleware auth
+        
+        // Ambil semua UMKM yang di-follow oleh user ini
+        const followingList = await prisma.follow.findMany({
+        where: {
+            id_user: userId
+        },
+        include: {
+            umkm: {
+            include: {
+                kategori_umkm: true,
+                promo: {
+                where: {
+                    tanggal_mulai: { lte: new Date() },
+                    tanggal_berakhir: { gte: new Date() }
+                },
+                take: 1, // Ambil 1 promo terbaru saja
+                orderBy: {
+                    tanggal_mulai: 'desc'
+                }
+                }
+            }
+            }
+        },
+        orderBy: {
+            id_follow: 'desc' // Urutkan berdasarkan yang terbaru di-follow
+        }
+        });
+
+        // Hitung rating untuk setiap UMKM (jika ada)
+        const umkmWithRating = await Promise.all(
+        followingList.map(async (follow) => {
+            const umkm = follow.umkm;
+            
+            // Hitung rating dari produk-produk UMKM ini
+            const products = await prisma.produk.findMany({
+            where: { id_umkm: umkm.id_umkm },
+            select: { id_produk: true }
+            });
+
+            let totalRating = 0;
+            let ratingCount = 0;
+
+            for (const product of products) {
+            const ratings = await prisma.ulasan.findMany({
+                where: { id_produk: product.id_produk },
+                select: { rating: true }
+            });
+
+            ratings.forEach(r => {
+                totalRating += r.rating;
+                ratingCount++;
+            });
+            }
+
+            const avgRating = ratingCount > 0 ? totalRating / ratingCount : null;
+
+            return {
+            id_umkm: umkm.id_umkm,
+            id_user: umkm.id_user,
+            id_kategori_umkm: umkm.id_kategori_umkm,
+            nama_umkm: umkm.nama_umkm,
+            alamat: umkm.alamat,
+            no_telepon: umkm.no_telepon,
+            deskripsi: umkm.deskripsi,
+            gambar_url: generateUrl(umkm.gambar, req),
+            link_lokasi: umkm.link_lokasi,
+            tanggal_terdaftar: umkm.tanggal_terdaftar.toISOString(),
+            kategori_umkm: umkm.kategori_umkm ? {
+                id_kategori_umkm: umkm.kategori_umkm.id_kategori_umkm,
+                nama_kategori: umkm.kategori_umkm.nama_kategori,
+                deskripsi: umkm.kategori_umkm.deskripsi
+            } : null,
+            rating: avgRating ? parseFloat(avgRating.toFixed(1)) : null,
+            promos: umkm.promo.map(promo => ({
+                id_promo: promo.id_promo,
+                nama_promo: promo.nama_promo,
+                deskripsi: promo.deskripsi
+            }))
+            };
+        })
+        );
+
+        res.json({
+        success: true,
+        message: "Berhasil mengambil UMKM yang di-follow",
+        data: umkmWithRating
+        });
+    } catch (error) {
+        console.error('Error fetching following:', error);
+        res.status(500).json({
+        success: false,
+        message: "Gagal mengambil UMKM yang di-follow",
+        data: null
+        });
+    }
 };
