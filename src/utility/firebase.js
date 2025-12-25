@@ -3,11 +3,9 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Dapatkan path relatif file
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Baca JSON secara manual
 const serviceAccount = JSON.parse(
     fs.readFileSync(path.join(__dirname, "firebase-adminsdk.json"), "utf8")
 );
@@ -23,9 +21,9 @@ export const sendFirebaseNotification = async (
     title,
     body,
     {
-        targetUserId,   // ⬅️ WAJIB
-        type = "promo", // opsional
-        promoId = null  // opsional
+        targetUserId,   
+        type = "promo", 
+        promoId = null  
     } = {}
 ) => {
     if (!fcmToken || !targetUserId) {
@@ -37,13 +35,11 @@ export const sendFirebaseNotification = async (
         const message = {
             token: fcmToken,
 
-            // ❗ Notification tetap dikirim
             notification: {
                 title,
                 body,
             },
 
-            // 🔑 DATA PAYLOAD → VALIDASI DI CLIENT
             data: {
                 targetUserId: targetUserId.toString(),
                 type,

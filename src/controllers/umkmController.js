@@ -1,5 +1,5 @@
 import { prisma } from "../config/prismaclient.js";
-import { generateUrls } from "./product.controller.js"; // Import helper URL gambar Anda
+import { generateUrls } from "./product.controller.js"; 
 
 import fs from "fs";
 import path from "path";
@@ -8,7 +8,7 @@ export const getAllKategoriUMKM = async (req, res) => {
     try {
         const categories = await prisma.kategoriUMKM.findMany({
             orderBy: {
-                nama_kategori: 'asc' // Urutkan berdasarkan nama
+                nama_kategori: 'asc' 
             }
         });
 
@@ -51,12 +51,12 @@ export const getMyUmkm = async (req, res) => {
 
             return {
                 id_umkm: umkm.id_umkm,
-                id_kategori_umkm: umkm.id_kategori_umkm, // Penting untuk pre-fill dropdown
+                id_kategori_umkm: umkm.id_kategori_umkm, 
                 nama_umkm: umkm.nama_umkm,
                 deskripsi: umkm.deskripsi || "",
                 alamat: umkm.alamat || "",
                 no_telepon: umkm.no_telepon || "",
-                link_lokasi: umkm.link_lokasi || "", // Penting untuk pre-fill GPS
+                link_lokasi: umkm.link_lokasi || "", 
                 gambar: generateUrls(umkm.gambar, req), 
                 rating: finalRating,
                 total_ulasan: totalUlasan
@@ -76,10 +76,8 @@ export const getMyUmkm = async (req, res) => {
 
 export const createUmkm = async (req, res) => {
     try {
-        // Data teks ada di req.body
         const { id_user, id_kategori_umkm, nama_umkm, alamat, no_telepon, deskripsi, link_lokasi } = req.body;
         
-        // Nama file ada di req.file (hasil dari upload middleware)
         const namaFileGambar = req.file ? req.file.filename : null;
 
         const userExists = await prisma.user.findUnique({ where: { id_user: parseInt(id_user) } });
@@ -94,7 +92,7 @@ export const createUmkm = async (req, res) => {
                 no_telepon,
                 deskripsi,
                 link_lokasi,
-                gambar: namaFileGambar, // Simpan nama file string ke DB
+                gambar: namaFileGambar, 
             }
         });
 
@@ -109,30 +107,25 @@ export const createUmkm = async (req, res) => {
     }
 };
 
-// 2. UPDATE UMKM (Tanpa req.file)
 export const updateUmkm = async (req, res) => {
     try {
         const { id_umkm } = req.params;
-        // Data teks dari body
         const { id_kategori_umkm, nama_umkm, alamat, no_telepon, deskripsi, link_lokasi } = req.body;
         
-        // Cari UMKM lama untuk cek gambar lama
         const existingUmkm = await prisma.uMKM.findUnique({ where: { id_umkm: parseInt(id_umkm) } });
         if (!existingUmkm) return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
 
-        // Cek apakah ada file gambar baru dari req.file (Multer)
         const newImage = req.file ? req.file.filename : null;
-        let finalImage = existingUmkm.gambar; // Default pakai yang lama
+        let finalImage = existingUmkm.gambar; 
 
         if (newImage) {
-            // Jika ada gambar baru, hapus gambar lama dari storage server
             if (existingUmkm.gambar) {
                 const oldPath = path.join(process.cwd(), "public/uploads", existingUmkm.gambar);
                 fs.unlink(oldPath, (err) => {
                     if (err) console.error("Gagal hapus gambar lama saat update:", err);
                 });
             }
-            finalImage = newImage; // Set gambar baru untuk disimpan ke DB
+            finalImage = newImage; 
         }
 
         const updatedUmkm = await prisma.uMKM.update({
@@ -144,7 +137,7 @@ export const updateUmkm = async (req, res) => {
                 no_telepon: no_telepon || undefined,
                 deskripsi: deskripsi || undefined,
                 link_lokasi: link_lokasi || undefined,
-                gambar: finalImage // Menggunakan gambar baru atau tetap yang lama
+                gambar: finalImage 
             }
         });
 
@@ -167,7 +160,6 @@ export const deleteUmkm = async (req, res) => {
         const { id_umkm } = req.params;
         const id = parseInt(id_umkm);
 
-        // 1. Cari data UMKM terlebih dahulu untuk mendapatkan nama file gambar
         const umkm = await prisma.uMKM.findUnique({
             where: { id_umkm: id },
             select: { gambar: true }
@@ -177,7 +169,6 @@ export const deleteUmkm = async (req, res) => {
             return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
         }
 
-        // 2. Hapus data di database (termasuk dependensi)
         await prisma.ulasan.deleteMany({
             where: { produk: { id_umkm: id } }
         });
@@ -190,15 +181,12 @@ export const deleteUmkm = async (req, res) => {
             where: { id_umkm: id }
         });
 
-        // 3. Hapus file fisik dari folder uploads
         if (umkm.gambar) {
-            // Sesuaikan path dengan lokasi folder penyimpanan Anda
             const filePath = path.join(process.cwd(), "public/uploads", umkm.gambar);
             
             fs.unlink(filePath, (err) => {
                 if (err) {
                     console.error("Gagal menghapus file gambar:", err);
-                    // Kita tidak return error di sini agar response delete tetap sukses
                 } else {
                     console.log(`File ${umkm.gambar} berhasil dihapus dari server`);
                 }
@@ -233,7 +221,6 @@ export const getUmkmById = async (req, res) => {
             return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
         }
 
-        // Hitung Rating
         const allReviews = umkm.produk.flatMap(p => p.ulasan);
         const totalUlasan = allReviews.length;
         let finalRating = 0.0;

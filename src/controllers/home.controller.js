@@ -21,7 +21,6 @@ export const getAllUMKM = async (req, res) => {
             let imageUrl = null;
 
             if (item.gambar) {
-                // Ambil host dan protocol dari request secara dinamis
                 const host = req.get("x-forwarded-host") || req.get("host");
                 const protocol = req.get("x-forwarded-proto") || req.protocol;
                 const baseUrl = `${protocol}://${host}`;
@@ -34,7 +33,6 @@ export const getAllUMKM = async (req, res) => {
 
             return {
                 ...item,
-                // Timpa field ini agar Android menerima URL gambar yang benar
                 link_lokasi: imageUrl, 
                 gambar_url: imageUrl
             };

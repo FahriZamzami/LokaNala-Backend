@@ -1,4 +1,3 @@
-// Use the custom Prisma client output defined in prisma/schema.prisma
 import { PrismaClient } from '../generated/prisma/index.js';
 
 const prisma = new PrismaClient();
@@ -6,38 +5,27 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Memulai proses seeding...");
 
-  // =============================
-  // 0) BERSIH-BERSIH DATA (Urutan Penting!)
-  // =============================
-  // Hapus child data dulu sebelum parent
   await prisma.promo.deleteMany();
   await prisma.ulasan.deleteMany();
-  await prisma.produk.deleteMany(); // Hapus produk sebelum kategorinya
-  await prisma.kategoriProduk.deleteMany(); // Hapus kategori produk sebelum UMKM
+  await prisma.produk.deleteMany(); 
+  await prisma.kategoriProduk.deleteMany(); 
   await prisma.uMKM.deleteMany();
   await prisma.kategoriUMKM.deleteMany();
   await prisma.user.deleteMany();
 
-  // =============================
-  // 1) USER
-  // =============================
   console.log("🌱 Seeding User...");
-  // Kita buat satu per satu agar urutan index array nanti terjamin
   await prisma.user.createMany({
     data: [
       { nama: "Fahri Zamzami", email: "fahri@example.com", no_telepon: "081234567001", password: "password123", foto_profile: "__mio_arknights_drawn_by_dadijiji__e1184e0bad753d2ee6fd89f63ab34129.jpg"},
-      { nama: "Siti Rahma", email: "siti@example.com", no_telepon: "081234567002", password: "password123" },
-      { nama: "Budi Santoso", email: "budi@example.com", no_telepon: "081234567003", password: "password123" },
-      { nama: "Dewi Lestari", email: "dewi@example.com", no_telepon: "081234567004", password: "password123" },
-      { nama: "Ahmad Fauzi", email: "ahmad@example.com", no_telepon: "081234567005", password: "password123" },
+      { nama: "Siti Rahma", email: "siti@example.com", no_telepon: "081234567002", password: "password123", foto_profile: "siti.jpeg" },
+      { nama: "Budi Santoso", email: "budi@example.com", no_telepon: "081234567003", password: "password123", foto_profile: "budi.jpeg" },
+      { nama: "Dewi Lestari", email: "dewi@example.com", no_telepon: "081234567004", password: "password123", foto_profile: "dewi.jpeg" },
+      { nama: "Ahmad Fauzi", email: "ahmad@example.com", no_telepon: "081234567005", password: "password123", foto_profile: "fauzi.jpeg" },
     ],
   });
 
   const allUsers = await prisma.user.findMany({ orderBy: { id_user: 'asc' } });
 
-  // =============================
-  // 2) Kategori UMKM (Global)
-  // =============================
   console.log("🌱 Seeding Kategori UMKM...");
   await prisma.kategoriUMKM.createMany({
     data: [
@@ -51,74 +39,66 @@ async function main() {
 
   const allKategoriUMKM = await prisma.kategoriUMKM.findMany({ orderBy: { id_kategori_umkm: 'asc' } });
 
-  // =============================
-  // 3) UMKM
-  // =============================
   console.log("🌱 Seeding UMKM...");
-  // Kita buat manual satu-satu atau createMany, lalu fetch ulang
   await prisma.uMKM.createMany({
     data: [
       {
         id_user: allUsers[0].id_user,
-        id_kategori_umkm: allKategoriUMKM[0].id_kategori_umkm, // Kuliner
+        id_kategori_umkm: allKategoriUMKM[0].id_kategori_umkm, 
         nama_umkm: "Warung Makan Sederhana",
         alamat: "Jl. Merdeka No. 10",
         no_telepon: "081222333111",
         deskripsi: "Warung makan menu rumahan",
         link_lokasi: "https://goo.gl/maps/abcd1",
-        gambar: "a.jpg"
+        gambar: "a.jpeg"
       },
       {
         id_user: allUsers[1].id_user,
-        id_kategori_umkm: allKategoriUMKM[1].id_kategori_umkm, // Fashion
+        id_kategori_umkm: allKategoriUMKM[1].id_kategori_umkm, 
         nama_umkm: "Rahma Fashion Store",
         alamat: "Jl. Sudirman No. 22",
         no_telepon: "081222333112",
         deskripsi: "Toko fashion wanita",
         link_lokasi: "https://goo.gl/maps/abcd2",
-        gambar: "b.jpg"
+        gambar: "b.jpeg"
       },
       {
         id_user: allUsers[2].id_user,
-        id_kategori_umkm: allKategoriUMKM[2].id_kategori_umkm, // Kerajinan
+        id_kategori_umkm: allKategoriUMKM[2].id_kategori_umkm, 
         nama_umkm: "Budi Craft Art",
         alamat: "Jl. Kenanga No. 3",
         no_telepon: "081222333113",
         deskripsi: "Kerajinan handmade",
         link_lokasi: "https://goo.gl/maps/abcd3",
-        gambar: "c.jpg"
+        gambar: "c.jpeg"
       },
       {
         id_user: allUsers[3].id_user,
-        id_kategori_umkm: allKategoriUMKM[3].id_kategori_umkm, // Jasa (Salon)
+        id_kategori_umkm: allKategoriUMKM[3].id_kategori_umkm, 
         nama_umkm: "Dewi Salon",
         alamat: "Jl. Melati No. 7",
         no_telepon: "081222333114",
         deskripsi: "Layanan kecantikan",
         link_lokasi: "https://goo.gl/maps/abcd4",
-        gambar: "d.jpg"
+        gambar: "d.jpeg"
       },
       {
         id_user: allUsers[4].id_user,
-        id_kategori_umkm: allKategoriUMKM[4].id_kategori_umkm, // Pertanian
+        id_kategori_umkm: allKategoriUMKM[4].id_kategori_umkm, 
         nama_umkm: "Fauzi Farm",
         alamat: "Jl. Pertiwi No. 15",
         no_telepon: "081222333115",
         deskripsi: "Hasil pertanian organik",
         link_lokasi: "https://goo.gl/maps/abcd5",
-        gambar: "e.jpg"
+        gambar: "e.jpeg"
       },
     ],
   });
 
   const allUmkm = await prisma.uMKM.findMany({ orderBy: { id_umkm: 'asc' } });
 
-  // =============================
-  // 4) Kategori Produk (PERUBAHAN UTAMA)
-  // =============================
   console.log("🌱 Seeding Kategori Produk (Per UMKM + Urutan)...");
 
-  // A. Warung Makan
   const katUmkm1_Makanan = await prisma.kategoriProduk.create({
     data: {
       id_umkm: allUmkm[0].id_umkm,
@@ -137,7 +117,6 @@ async function main() {
     }
   });
 
-  // B. Rahma Fashion
   const katUmkm2_Baju = await prisma.kategoriProduk.create({
     data: {
       id_umkm: allUmkm[1].id_umkm,
@@ -156,7 +135,6 @@ async function main() {
     }
   });
 
-  // C. Budi Craft
   const katUmkm3_Hiasan = await prisma.kategoriProduk.create({
     data: {
       id_umkm: allUmkm[2].id_umkm,
@@ -166,7 +144,6 @@ async function main() {
     }
   });
 
-  // D. Fauzi Farm
   const katUmkm5_Sayur = await prisma.kategoriProduk.create({
     data: {
       id_umkm: allUmkm[4].id_umkm,
@@ -177,16 +154,12 @@ async function main() {
   });
 
 
-  // =============================
-  // 5) Produk (Update Referensi Kategori)
-  // =============================
   console.log("🌱 Seeding Produk...");
   await prisma.produk.createMany({
     data: [
-      // Produk UMKM 1 (Warung)
       {
         id_umkm: allUmkm[0].id_umkm,
-        id_kategori_produk: katUmkm1_Makanan.id_kategori_produk, // Pakai ID kategori milik dia sendiri
+        id_kategori_produk: katUmkm1_Makanan.id_kategori_produk, 
         nama_produk: "Nasi Goreng Spesial",
         deskripsi: "Nasi goreng dengan bumbu khas",
         harga: 15000,
@@ -198,7 +171,6 @@ async function main() {
         deskripsi: "Minuman segar favorit",
         harga: 5000,
       },
-      // Produk UMKM 2 (Fashion)
       {
         id_umkm: allUmkm[1].id_umkm,
         id_kategori_produk: katUmkm2_Aksesori.id_kategori_produk,
@@ -206,7 +178,6 @@ async function main() {
         deskripsi: "Aksesori elegan",
         harga: 25000,
       },
-      // Produk UMKM 3 (Craft)
       {
         id_umkm: allUmkm[2].id_umkm,
         id_kategori_produk: katUmkm3_Hiasan.id_kategori_produk,
@@ -214,7 +185,6 @@ async function main() {
         deskripsi: "Kerajinan kayu jati",
         harga: 45000,
       },
-      // Produk UMKM 5 (Farm)
       {
         id_umkm: allUmkm[4].id_umkm,
         id_kategori_produk: katUmkm5_Sayur.id_kategori_produk,
@@ -227,11 +197,7 @@ async function main() {
 
   const allProduk = await prisma.produk.findMany({ orderBy: { id_produk: 'asc' } });
 
-  // =============================
-  // 6) Ulasan
-  // =============================
   console.log("🌱 Seeding Ulasan...");
-  // Pastikan index produk sesuai urutan insert di atas
   await prisma.ulasan.createMany({
     data: [
       { id_user: allUsers[0].id_user, id_produk: allProduk[0].id_produk, rating: 5, komentar: "Enak sekali!" },
@@ -242,9 +208,6 @@ async function main() {
     ],
   });
 
-  // =============================
-  // 7) Promo
-  // =============================
   console.log("🌱 Seeding Promo...");
   await prisma.promo.createMany({
     data: [

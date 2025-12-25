@@ -38,10 +38,8 @@ model UMKM {
   nama_umkm        String
   alamat           String?
   no_telepon       String?
-  deskripsi        String?
+  deskripsi        String? @db.VarChar(1000)
   link_lokasi      String?
-  
-  // Field baru untuk gambar UMKM
   gambar           String?
   
   tanggal_terdaftar DateTime @default(now())
@@ -51,8 +49,6 @@ model UMKM {
   
   produk        Produk[]
   promo         Promo[]
-  
-  // PERBAIKAN: Field lawan untuk relasi ke KategoriProduk
   kategori_produk KategoriProduk[] 
   follow          Follow[]
 }
@@ -75,7 +71,7 @@ model Produk {
   id_umkm            Int
   id_kategori_produk Int?
   nama_produk        String
-  deskripsi          String?
+  deskripsi          String? @db.VarChar(1000)
   harga              Float
   gambar             String?
   tanggal_ditambahkan DateTime @default(now())
@@ -90,7 +86,7 @@ model Ulasan {
   id_user        Int
   id_produk      Int
   rating         Int
-  komentar       String?
+  komentar       String? @db.VarChar(500)
   foto           String?
   tanggal_ulasan DateTime @default(now())
 
@@ -102,11 +98,9 @@ model Promo {
   id_promo          Int       @id @default(autoincrement())
   id_umkm           Int
   nama_promo        String
-  deskripsi         String?
-  syarat_penggunaan String?
-  
-  // Field baru untuk cara penggunaan promo
-  cara_penggunaan   String?
+  deskripsi         String? @db.VarChar(1000)
+  syarat_penggunaan String? @db.VarChar(1000)
+  cara_penggunaan   String? @db.VarChar(1000)
   
   tanggal_mulai     DateTime?
   tanggal_berakhir  DateTime?
@@ -122,7 +116,7 @@ model Follow {
   user User @relation(fields: [id_user], references: [id_user])
   umkm UMKM @relation(fields: [id_umkm], references: [id_umkm])
 
-  @@unique([id_user, id_umkm]) // mencegah follow ganda
+  @@unique([id_user, id_umkm]) 
 }
 
 model Notifikasi {
@@ -142,6 +136,6 @@ model NotificationSendTo {
   notifikasi Notifikasi @relation(fields: [id_notifikasi], references: [id_notifikasi])
   user       User       @relation(fields: [id_user], references: [id_user])
 
-  @@id([id_notifikasi, id_user]) // composite primary key
+  @@id([id_notifikasi, id_user]) 
 }
 

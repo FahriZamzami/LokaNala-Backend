@@ -9,18 +9,15 @@ export const registerUser = async (req, res) => {
         const { nama, email, no_telepon, password, fcm_token } = req.body;
         const foto_profile = req.file ? req.file.filename : null;
 
-        // 1. Validasi input wajib
         if (!nama || !email || !no_telepon || !password || !foto_profile) {
             return res.status(400).json({ success: false, message: "Semua data dan foto profil wajib diisi" });
         }
 
-        // 2. Cek apakah email sudah terdaftar
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             return res.status(400).json({ success: false, message: "Email sudah digunakan" });
         }
 
-        // 3. Simpan user baru (Password sebaiknya dihash, namun sesuaikan dengan login Anda)
         const newUser = await prisma.user.create({
             data: {
                 nama,
@@ -32,7 +29,6 @@ export const registerUser = async (req, res) => {
             }
         });
 
-        // 4. AUTO LOGIN: Generate JWT Token langsung
         const token = jwt.sign(
             { id_user: newUser.id_user, email: newUser.email },
             JWT_SECRET,
@@ -62,7 +58,6 @@ export const loginUser = async (req, res) => {
     console.log("📥 Login request:", { email, fcmToken });
 
     try {
-        // 1. Cari user
         const user = await prisma.user.findUnique({
         where: { email },
         });
@@ -71,12 +66,10 @@ export const loginUser = async (req, res) => {
         return res.status(404).json({ message: "User tidak ditemukan" });
         }
 
-        // 2. Cek password (sementara plaintext)
         if (user.password !== password) {
         return res.status(401).json({ message: "Password salah" });
         }
 
-        // 3. Update FCM token jika dikirim
         if (fcmToken && fcmToken !== user.fcm_token) {
             await prisma.user.update({
                 where: { id_user: user.id_user },
@@ -84,7 +77,6 @@ export const loginUser = async (req, res) => {
             });
         }
 
-        // 4. Generate JWT
         const token = jwt.sign(
         {
             id_user: user.id_user,
@@ -96,7 +88,6 @@ export const loginUser = async (req, res) => {
 
         const fotoProfileUrl = generateUrl(user.foto_profile, req);
 
-        // 5. Response
         res.json({
         success: true,
         message: "Login berhasil",
@@ -120,10 +111,8 @@ export const loginUser = async (req, res) => {
     }
 };
 
-// src/controllers/user.controller.js
 export const logoutUser = async (req, res) => {
     try {
-        // Logging body mentah untuk memastikan body-parser bekerja
         console.log("📥 [LOGOUT] Raw Body diterima:", req.body);
 
         const { id_user } = req.body;
@@ -139,7 +128,6 @@ export const logoutUser = async (req, res) => {
         const numericId = Number(id_user);
         console.log(`🚪 [LOGOUT] Mencoba logout untuk User ID: ${numericId}`);
 
-        // Cek apakah user ada sebelum diupdate
         const userCheck = await prisma.user.findUnique({
             where: { id_user: numericId }
         });
@@ -152,7 +140,6 @@ export const logoutUser = async (req, res) => {
             });
         }
 
-        // Jalankan update
         await prisma.user.update({
             where: { id_user: numericId },
             data: { fcm_token: null },
@@ -177,16 +164,13 @@ export const logoutUser = async (req, res) => {
 
 export const getMyUMKM = async (req, res) => {
     try {
-        // 1. Ambil ID User dari Middleware (req.user diset oleh auth.js)
         const userId = req.user.id_user;
 
-        // 2. Query UMKM milik user tersebut
         const myUmkmList = await prisma.uMKM.findMany({
         where: {
             id_user: userId,
         },
         include: {
-            // Kita butuh data produk & ulasan untuk menghitung rating rata-rata toko
             produk: {
             select: {
                 ulasan: {
@@ -199,7 +183,6 @@ export const getMyUMKM = async (req, res) => {
         },
         });
 
-        // 3. Helper URL Gambar Dinamis
         const generateUrl = (filename) => {
         if (!filename) return null;
         if (filename.startsWith("http")) return filename;
@@ -208,9 +191,7 @@ export const getMyUMKM = async (req, res) => {
         return `${protocol}://${host}/uploads/${filename}`;
         };
 
-        // 4. Format Data untuk Response
         const formattedData = myUmkmList.map((umkm) => {
-        // Hitung Rating Rata-rata UMKM (Rata-rata dari semua ulasan di semua produk)
         let totalRating = 0;
         let reviewCount = 0;
 
@@ -226,8 +207,8 @@ export const getMyUMKM = async (req, res) => {
         return {
             id: umkm.id_umkm,
             name: umkm.nama_umkm,
-            rating: parseFloat(averageRating.toFixed(1)), // Contoh: 4.5
-            imageRes: generateUrl(umkm.gambar), // URL Foto Profil UMKM
+            rating: parseFloat(averageRating.toFixed(1)), 
+            imageRes: generateUrl(umkm.gambar), 
         };
         });
 
@@ -262,9 +243,8 @@ export const generateUrl = (filename, req) => {
 
 export const getUserFollowing = async (req, res) => {
     try {
-        const userId = req.user.id_user; // Dari middleware auth
+        const userId = req.user.id_user; 
         
-        // Ambil semua UMKM yang di-follow oleh user ini
         const followingList = await prisma.follow.findMany({
         where: {
             id_user: userId
@@ -278,7 +258,7 @@ export const getUserFollowing = async (req, res) => {
                     tanggal_mulai: { lte: new Date() },
                     tanggal_berakhir: { gte: new Date() }
                 },
-                take: 1, // Ambil 1 promo terbaru saja
+                take: 1, 
                 orderBy: {
                     tanggal_mulai: 'desc'
                 }
@@ -287,16 +267,14 @@ export const getUserFollowing = async (req, res) => {
             }
         },
         orderBy: {
-            id_follow: 'desc' // Urutkan berdasarkan yang terbaru di-follow
+            id_follow: 'desc' 
         }
         });
 
-        // Hitung rating untuk setiap UMKM (jika ada)
         const umkmWithRating = await Promise.all(
         followingList.map(async (follow) => {
             const umkm = follow.umkm;
             
-            // Hitung rating dari produk-produk UMKM ini
             const products = await prisma.produk.findMany({
             where: { id_umkm: umkm.id_umkm },
             select: { id_produk: true }

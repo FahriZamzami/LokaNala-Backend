@@ -1,16 +1,10 @@
 import { prisma } from "../config/prismaclient.js";
 
-/**
- * ===============================
- * FOLLOW UMKM
- * ===============================
- */
 export const followUMKM = async (req, res) => {
 try {
-    const id_user = req.user.id_user;      // dari auth middleware
-    const { id_umkm } = req.params;        // /follow/:id_umkm
+    const id_user = req.user.id_user;      
+    const { id_umkm } = req.params;        
 
-    // 1. Cek UMKM ada atau tidak
     const umkm = await prisma.uMKM.findUnique({
     where: { id_umkm: Number(id_umkm) }
     });
@@ -21,7 +15,6 @@ try {
     });
     }
 
-    // 2. Cek apakah sudah follow
     const alreadyFollow = await prisma.follow.findUnique({
     where: {
         id_user_id_umkm: {
@@ -37,7 +30,6 @@ try {
     });
     }
 
-    // 3. Simpan follow
     await prisma.follow.create({
     data: {
         id_user,
@@ -57,17 +49,11 @@ try {
 }
 };
 
-/**
- * ===============================
- * UNFOLLOW UMKM
- * ===============================
- */
 export const unfollowUMKM = async (req, res) => {
 try {
     const id_user = req.user.id_user;
     const { id_umkm } = req.params;
 
-    // Hapus follow
     await prisma.follow.delete({
     where: {
         id_user_id_umkm: {
@@ -82,7 +68,6 @@ try {
     });
 
 } catch (error) {
-    // jika data tidak ada
     if (error.code === "P2025") {
     return res.status(404).json({
         message: "Follow tidak ditemukan"
@@ -96,11 +81,6 @@ try {
 }
 };
 
-/**
- * ===============================
- * CEK STATUS FOLLOW
- * ===============================
- */
 export const checkFollowStatus = async (req, res) => {
 try {
     const id_user = req.user.id_user;
@@ -127,11 +107,6 @@ try {
 }
 };
 
-/**
- * ===============================
- * LIST UMKM YANG DIFOLLOW USER
- * ===============================
- */
 export const getFollowedUMKM = async (req, res) => {
 try {
     const id_user = req.user.id_user;

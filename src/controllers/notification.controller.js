@@ -1,25 +1,21 @@
 import { prisma } from "../config/prismaclient.js";
 
-// GET /api/user/notifications
 export const getUserNotifications = async (req, res) => {
     try {
-        // Ambil id_user dari token yang sudah di-decode di middleware
-        const userId = req.user.id_user; // dari token JWT
+        const userId = req.user.id_user; 
         
-        // Query database menggunakan Prisma
         const notifications = await prisma.notificationSendTo.findMany({
         where: {
             id_user: userId
         },
         include: {
-            notifikasi: true // Join dengan tabel Notifikasi
+            notifikasi: true 
         },
         orderBy: {
-            dikirim_pada: 'desc' // Urutkan dari yang terbaru
+            dikirim_pada: 'desc' 
         }
         });
         
-        // Format response sesuai dengan NotificationApiItem
         const formattedNotifications = notifications.map(item => ({
         id_notifikasi: item.notifikasi.id_notifikasi,
         judul: item.notifikasi.judul,

@@ -1,10 +1,8 @@
 import { prisma } from "../config/prismaclient.js";
 
-// 1. Buat Kategori Baru (POST)
 export const createCategory = async (req, res) => {
     const { id_umkm, nama_kategori, deskripsi } = req.body;
 
-    // Validasi input dasar
     if (!id_umkm || !nama_kategori) {
         return res.status(400).json({
             success: false,
@@ -13,7 +11,6 @@ export const createCategory = async (req, res) => {
     }
 
     try {
-        // ⭐ Set urutan otomatis: ambil urutan terbesar untuk UMKM ini, lalu +1
         const maxUrutan = await prisma.kategoriProduk.findFirst({
             where: { id_umkm: parseInt(id_umkm) },
             orderBy: { urutan: 'desc' },
@@ -27,7 +24,7 @@ export const createCategory = async (req, res) => {
                 id_umkm: parseInt(id_umkm),
                 nama_kategori: nama_kategori,
                 deskripsi: deskripsi || null,
-                urutan: nextUrutan // Set urutan otomatis
+                urutan: nextUrutan 
             }
         });
 
@@ -46,13 +43,10 @@ export const createCategory = async (req, res) => {
     }
 };
 
-// 2. Ambil Semua Kategori Milik UMKM Tertentu (GET)
 export const getCategoriesByUmkm = async (req, res) => {
     try {
-        // Support both parameter names: umkmId (from route) or id_umkm (legacy)
         const umkmId = req.params.umkmId || req.params.id_umkm;
 
-        // Validasi umkmId
         if (!umkmId) {
             return res.status(400).json({
                 success: false,
@@ -69,7 +63,6 @@ export const getCategoriesByUmkm = async (req, res) => {
             });
         }
 
-        // Cek apakah UMKM ada
         const umkmExists = await prisma.uMKM.findUnique({
             where: { id_umkm: umkmIdInt },
             select: { id_umkm: true }
@@ -82,22 +75,19 @@ export const getCategoriesByUmkm = async (req, res) => {
             });
         }
 
-        // Query kategori produk berdasarkan id_umkm
-        // ⭐ PERBAIKAN: Urutkan berdasarkan field urutan (ASC) untuk tampilan yang konsisten
         const categories = await prisma.kategoriProduk.findMany({
             where: {
                 id_umkm: umkmIdInt
             },
             orderBy: {
-                urutan: 'asc' // Urutkan berdasarkan urutan (0, 1, 2, ...)
+                urutan: 'asc' 
             }
         });
 
-        // Jika tidak ada kategori, return empty array (bukan error)
         res.status(200).json({
             success: true,
             message: "Data retrieved successfully",
-            data: categories // Akan berupa empty array [] jika tidak ada kategori
+            data: categories 
         });
     } catch (error) {
         console.error("Error fetching categories by UMKM:", error);
@@ -109,9 +99,8 @@ export const getCategoriesByUmkm = async (req, res) => {
     }
 };
 
-// 3. Update Kategori (PUT)
 export const updateCategory = async (req, res) => {
-    const { id } = req.params; // ID Kategori
+    const { id } = req.params; 
     const { nama_kategori, deskripsi } = req.body;
 
     try {
@@ -129,7 +118,6 @@ export const updateCategory = async (req, res) => {
             data: updatedCategory
         });
     } catch (error) {
-        // Handle jika ID tidak ditemukan (Error Code Prisma P2025)
         if (error.code === 'P2025') {
             return res.status(404).json({ success: false, message: "Kategori tidak ditemukan" });
         }
@@ -137,7 +125,6 @@ export const updateCategory = async (req, res) => {
     }
 };
 
-// 4. Hapus Kategori (DELETE)
 export const deleteCategory = async (req, res) => {
     const { id } = req.params;
 
@@ -151,14 +138,12 @@ export const deleteCategory = async (req, res) => {
             message: "Kategori berhasil dihapus"
         });
     } catch (error) {
-        // Error P2003: Foreign Key Constraint (Jika kategori masih dipakai oleh Produk)
         if (error.code === 'P2003') {
             return res.status(400).json({ 
                 success: false, 
                 message: "Gagal hapus: Kategori ini sedang digunakan oleh produk. Hapus atau ubah produk terkait terlebih dahulu." 
             });
         }
-        // Error P2025: Record not found
         if (error.code === 'P2025') {
             return res.status(404).json({ success: false, message: "Kategori tidak ditemukan" });
         }
@@ -166,13 +151,11 @@ export const deleteCategory = async (req, res) => {
     }
 };
 
-// 5. Update Urutan Kategori (PUT) - ENDPOINT BARU
 export const updateCategoryOrder = async (req, res) => {
     try {
         const { umkmId } = req.params;
-        const { urutan } = req.body; // Array of { id_kategori_produk, urutan }
+        const { urutan } = req.body; 
 
-        // Validasi umkmId
         if (!umkmId) {
             return res.status(400).json({
                 success: false,
@@ -189,7 +172,6 @@ export const updateCategoryOrder = async (req, res) => {
             });
         }
 
-        // Validasi request body
         if (!urutan || !Array.isArray(urutan) || urutan.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -197,7 +179,6 @@ export const updateCategoryOrder = async (req, res) => {
             });
         }
 
-        // Validasi struktur array
         for (const item of urutan) {
             if (!item.id_kategori_produk || item.urutan === undefined) {
                 return res.status(400).json({
@@ -207,10 +188,8 @@ export const updateCategoryOrder = async (req, res) => {
             }
         }
 
-        // Ambil semua id_kategori_produk dari request
         const kategoriIds = urutan.map(item => parseInt(item.id_kategori_produk));
 
-        // ⭐ Validasi: Pastikan semua kategori milik UMKM ini
         const existingCategories = await prisma.kategoriProduk.findMany({
             where: {
                 id_umkm: umkmIdInt,
@@ -226,7 +205,6 @@ export const updateCategoryOrder = async (req, res) => {
             });
         }
 
-        // ⭐ Validasi: Pastikan urutan tidak duplikat
         const urutanValues = urutan.map(item => parseInt(item.urutan));
         const uniqueUrutan = [...new Set(urutanValues)];
         if (urutanValues.length !== uniqueUrutan.length) {
@@ -236,7 +214,6 @@ export const updateCategoryOrder = async (req, res) => {
             });
         }
 
-        // ⭐ Validasi: Pastikan urutan berurutan (0, 1, 2, 3, ...)
         const sortedUrutan = [...urutanValues].sort((a, b) => a - b);
         for (let i = 0; i < sortedUrutan.length; i++) {
             if (sortedUrutan[i] !== i) {
@@ -247,7 +224,6 @@ export const updateCategoryOrder = async (req, res) => {
             }
         }
 
-        // ⭐ Update urutan menggunakan transaction untuk memastikan konsistensi
         await prisma.$transaction(
             urutan.map(item =>
                 prisma.kategoriProduk.update({

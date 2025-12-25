@@ -2,11 +2,11 @@ import { prisma } from "../config/prismaclient.js";
 import { sendFirebaseNotification } from "../utility/firebase.js";
 
 const formatDate = (date) => {
-    if (!date) return null; // ini penting agar tidak 1970-01-01
+    if (!date) return null; 
 
     const d = new Date(date);
     return new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Jakarta" // Biar tidak pakai UTC
+        timeZone: "Asia/Jakarta" 
     }).format(d);
 };
 
@@ -68,13 +68,12 @@ export const createPromo = async (req, res) => {
         const { id_umkm } = req.params;
         const { nama_promo, deskripsi, syarat_penggunaan, cara_penggunaan, tanggal_mulai, tanggal_berakhir } = req.body;
 
-        // Ambil UMKM + owner
         const umkm = await prisma.UMKM.findUnique({
             where: { id_umkm: Number(id_umkm) },
             include: {
                 user: {
                     select: {
-                        id_user: true,      // ⬅️ TAMBAH
+                        id_user: true,      
                         fcm_token: true
                     }
                 }
@@ -85,13 +84,11 @@ export const createPromo = async (req, res) => {
             return res.status(404).json({ success: false, message: "UMKM tidak ditemukan" });
         }
 
-        // Ambil follower (hanya id_user)
         const followers = await prisma.follow.findMany({
             where: { id_umkm: Number(id_umkm) },
             select: { id_user: true }
         });
 
-        // Ambil fcm_token dari user berdasarkan id_user follower
         const followerIds = followers.map(f => f.id_user);
         const followerUsers = await prisma.user.findMany({
             where: {
@@ -103,7 +100,6 @@ export const createPromo = async (req, res) => {
             }
         });
 
-        // Simpan promo
         const promo = await prisma.promo.create({
             data: {
                 id_umkm: Number(id_umkm),
@@ -116,7 +112,6 @@ export const createPromo = async (req, res) => {
             }
         });
 
-        // Buat notifikasi DB
         const notifikasi = await prisma.notifikasi.create({
             data: {
                 judul: "Promo Baru 🎉",
@@ -124,7 +119,6 @@ export const createPromo = async (req, res) => {
             }
         });
 
-        // Kirim notifikasi ke follower (simpan ke DB)
         if (followers.length > 0) {
             await prisma.notificationSendTo.createMany({
                 data: followers.map(f => ({
@@ -133,7 +127,6 @@ export const createPromo = async (req, res) => {
                 }))
             });
 
-            // Kirim Firebase notification ke semua follower yang punya FCM token
             const fcmPromises = followerUsers
                 .filter(user => user.fcm_token)
                 .map(user =>
@@ -156,7 +149,6 @@ export const createPromo = async (req, res) => {
             console.log(`Notifikasi terkirim ke ${fcmPromises.length} follower`);
         }
 
-        // Firebase ke owner UMKM
         if (umkm.user?.fcm_token) {
             await sendFirebaseNotification(
                 umkm.user.fcm_token,

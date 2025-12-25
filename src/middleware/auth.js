@@ -1,4 +1,3 @@
-// src/middleware/auth.middleware.js
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "lokanala_secret";
@@ -18,7 +17,6 @@ export const authenticate = (req, res, next) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        // SIMPAN USER DARI JWT KE REQUEST
         req.user = {
             id_user: decoded.id_user,
             email: decoded.email
